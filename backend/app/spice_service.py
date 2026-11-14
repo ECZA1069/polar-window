@@ -196,7 +196,8 @@ def utc_to_et(utc_iso: str) -> float:
     ensure_loaded()
     clean = utc_iso.split("+")[0].rstrip("Z")
     if sp is not None:
-        return sp.str2et(clean.replace("T", " ") + " UTC")
+        with _lock:
+            return sp.str2et(clean.replace("T", " ") + " UTC")
     return _fallback.utc_to_et(clean)
 
 @lru_cache(maxsize=4096)
@@ -204,8 +205,9 @@ def body_vectors(et: float):
     """Moon-centred positions (km) of Sun and Earth in MOON_ME, light-time + stellar aberration corrected."""
     ensure_loaded()
     if sp is not None:
-        sun, _ = sp.spkpos("SUN", et, "MOON_ME", "LT+S", "MOON")
-        earth, _ = sp.spkpos("EARTH", et, "MOON_ME", "LT+S", "MOON")
+        with _lock:
+            sun, _ = sp.spkpos("SUN", et, "MOON_ME", "LT+S", "MOON")
+            earth, _ = sp.spkpos("EARTH", et, "MOON_ME", "LT+S", "MOON")
     else:
         sun = _fallback.spkpos_lt_s_moon_me("SUN", et)
         earth = _fallback.spkpos_lt_s_moon_me("EARTH", et)
@@ -233,11 +235,13 @@ def vectors_series(start_utc: str, hours: float, step_min: float):
     n = int(round(hours * 60 / step_min)) + 1
     t = np.arange(n) * step_min * 60.0
     sun = np.empty((n, 3)); earth = np.empty((n, 3))
-    for i, dt in enumerate(t):
-        if sp is not None:
-            sun[i], _ = sp.spkpos("SUN", et0 + dt, "MOON_ME", "LT+S", "MOON")
-            earth[i], _ = sp.spkpos("EARTH", et0 + dt, "MOON_ME", "LT+S", "MOON")
-        else:
+    if sp is not None:
+        with _lock:
+            for i, dt in enumerate(t):
+                sun[i], _ = sp.spkpos("SUN", et0 + dt, "MOON_ME", "LT+S", "MOON")
+                earth[i], _ = sp.spkpos("EARTH", et0 + dt, "MOON_ME", "LT+S", "MOON")
+    else:
+        for i, dt in enumerate(t):
             sun[i] = _fallback.spkpos_lt_s_moon_me("SUN", et0 + dt)
             earth[i] = _fallback.spkpos_lt_s_moon_me("EARTH", et0 + dt)
     return t, sun, earth
