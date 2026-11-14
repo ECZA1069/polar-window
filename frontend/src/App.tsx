@@ -171,17 +171,11 @@ const LAYERS: { k: keyof Layers; label: string }[] = [
   { k: "texture", label: "Surface Albedo Texture" },
   { k: "relief", label: "Relief Normal Shading" },
   { k: "craters", label: "LOLA Craters & Rim Circles" },
-  { k: "markers", label: "Exploration Site Markers" },
+  { k: "markers", label: "Selected Site Target Marker" },
   { k: "terminator", label: "Day/Night Terminator" },
   { k: "graticule", label: "Coordinate Graticule" },
   { k: "indicators", label: "Sun & Earth Vectors" },
   { k: "axis", label: "Lunar Spin Axis" },
-];
-
-const UNAVAILABLE_LAYERS = [
-  "Slope Steepness Vector",
-  "Surface Roughness Matrix",
-  "Permanently Shadowed Regions (PSR)",
 ];
 
 function NumInput({
@@ -234,7 +228,7 @@ export default function App() {
   const s = useSim();
   const [srcModal, setSrcModal] = useState(false);
   const [aboutModal, setAboutModal] = useState(false);
-  const [showFloatingCard, setShowFloatingCard] = useState(true);
+  const [showFloatingCard, setShowFloatingCard] = useState(false);
 
   const g = s.geometry;
   const wEnd = s.windowStartMs + s.windowHours * 3600e3;
@@ -242,16 +236,6 @@ export default function App() {
   const currentSite = useMemo(() => {
     return s.sites.find((x) => x.id === s.siteId);
   }, [s.sites, s.siteId]);
-
-  // Compute Mission Elapsed Time (MET) or simulated duration
-  const metDisplay = useMemo(() => {
-    const d = new Date(s.utcMs);
-    const dayOfYear = Math.floor((s.utcMs - Date.UTC(d.getUTCFullYear(), 0, 1)) / 86400000);
-    const hrs = String(d.getUTCHours()).padStart(2, "0");
-    const mins = String(d.getUTCMinutes()).padStart(2, "0");
-    const secs = String(d.getUTCSeconds()).padStart(2, "0");
-    return `T+${String(dayOfYear).padStart(3, "0")}:${hrs}:${mins}:${secs}`;
-  }, [s.utcMs]);
 
   const tabs: [Tab, string][] = [
     ["timeline", "01 SUNLIGHT TIMELINE"],
@@ -317,6 +301,33 @@ export default function App() {
 
         {/* Right action navigation */}
         <div className="header-actions">
+          <select
+            className="aero-select"
+            style={{ width: "230px", padding: "5px 8px", fontSize: "11px", height: "28px" }}
+            value={s.view === "rover" ? "__rover__" : s.siteId ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "__rover__") {
+                s.setView("rover");
+              } else if (val) {
+                if (s.view === "rover") s.setView("south");
+                s.selectSite(val);
+              }
+            }}
+            title="Select Lunar Crater, Peak, Landing Site, or LRV Expedition"
+          >
+            <option value="">— LUNAR SITES & CRATERS MENU —</option>
+            <optgroup label="Surface Rover Mode">
+              <option value="__rover__">LRV Surface Expedition (3D Interactive Rover)</option>
+            </optgroup>
+            <optgroup label="Lunar Craters, Peaks & Landing Sites">
+              {s.sites.map((x) => (
+                <option key={x.id} value={x.id}>
+                  {x.name} ({x.lat.toFixed(1)}°, {x.lon.toFixed(1)}°E)
+                </option>
+              ))}
+            </optgroup>
+          </select>
           <button className="btn-header" onClick={() => setSrcModal(true)}>
             DATA SOURCES
           </button>
@@ -340,33 +351,33 @@ export default function App() {
 
           <div className="input-group">
             <div className="input-label">
-              <span>ACTIVE TARGET SELECTION</span>
+              <span>CRATER / PEAK / SITE MENU</span>
             </div>
             <select
               className="aero-select"
-              value={s.siteId ?? ""}
-              onChange={(e) => e.target.value && s.selectSite(e.target.value)}
+              value={s.view === "rover" ? "__rover__" : s.siteId ?? ""}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === "__rover__") {
+                  s.setView("rover");
+                } else if (val) {
+                  if (s.view === "rover") s.setView("south");
+                  s.selectSite(val);
+                }
+              }}
             >
               <option value="">Custom Coordinates</option>
-              {s.sites.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.name} ({x.lat.toFixed(1)}°, {x.lon.toFixed(1)}°E)
-                </option>
-              ))}
+              <optgroup label="Surface Expedition">
+                <option value="__rover__">LRV Expedition (Drive 3D Rover)</option>
+              </optgroup>
+              <optgroup label="Polar Craters, Peaks & Artemis Sites">
+                {s.sites.map((x) => (
+                  <option key={x.id} value={x.id}>
+                    {x.name} ({x.lat.toFixed(1)}°, {x.lon.toFixed(1)}°E)
+                  </option>
+                ))}
+              </optgroup>
             </select>
-          </div>
-
-          {/* Quick Site Selection Chips */}
-          <div className="site-quick-grid">
-            {s.sites.map((site) => (
-              <button
-                key={site.id}
-                className={`btn-site-chip ${s.siteId === site.id ? "active" : ""}`}
-                onClick={() => s.selectSite(site.id)}
-              >
-                {site.name}
-              </button>
-            ))}
           </div>
 
           {/* Precision Coordinates Dual Inputs */}
@@ -495,21 +506,7 @@ export default function App() {
 
         {s.view !== "rover" && (
           <>
-            {/* HUD Top-Left Overlay (Mission Elapsed Time) */}
-            <div className="hud-corner-top-left">
-              <span className="hud-caption-tag">MISSION ELAPSED TIME</span>
-              <span className="hud-value-large">{metDisplay}</span>
-            </div>
-
-            {/* HUD Top-Right Overlay (Phase Tag) */}
-            <div className="hud-corner-top-right">
-              <span className="hud-caption-tag">— MISSION PHASE —</span>
-              <span className="hud-phase-tag">
-                {s.lat <= -80 ? "SOUTH POLE SURVEY" : s.lat >= 80 ? "NORTH POLE SURVEY" : "EQUATORIAL SURVEY"}
-              </span>
-            </div>
-
-            {/* FLOATING SITE INSPECTION HUD CARD */}
+            {/* FLOATING SITE INSPECTION HUD CARD (Only when opened via menu) */}
             {showFloatingCard && (
               <div className="floating-site-card">
                 <div className="floating-site-card-header">
@@ -528,9 +525,10 @@ export default function App() {
                   {currentSite ? currentSite.name : `Site (${s.lat.toFixed(2)}°, ${s.lon.toFixed(2)}°E)`}
                 </div>
                 <div className="floating-site-desc">
-                  {s.lat <= -88
-                    ? "Near the lunar South Pole, the low solar elevation produces extreme shadow dynamics and persistent illuminated ridges crucial for long-duration surface presence."
-                    : "Exploration site on the lunar surface with periodic day/night thermal cycling and geometric line-of-sight visibility to Earth."}
+                  {currentSite?.description ||
+                    (s.lat <= -88
+                      ? "Near the lunar South Pole, the low solar elevation produces extreme shadow dynamics and persistent illuminated ridges crucial for long-duration surface presence."
+                      : "Exploration site on the lunar surface with periodic day/night thermal cycling and geometric line-of-sight visibility to Earth.")}
                 </div>
                 <div className="floating-site-grid">
                   <div>
@@ -578,19 +576,15 @@ export default function App() {
               </div>
             )}
 
-            {/* Re-open Button */}
-            {!showFloatingCard && (
+            {/* Top-Right Visual Layers & Inspector Menu */}
+            <div className="hud-layers-flyout" style={{ top: "14px", right: "14px", display: "flex", gap: "8px", alignItems: "flex-start" }}>
               <button
-                style={{ position: "absolute", top: "70px", left: "16px", zIndex: 6 }}
                 className="btn-header"
-                onClick={() => setShowFloatingCard(true)}
+                style={{ background: "rgba(6, 12, 24, 0.88)", backdropFilter: "blur(10px)" }}
+                onClick={() => setShowFloatingCard((v) => !v)}
               >
-                SHOW SITE INSPECTOR
+                {showFloatingCard ? "HIDE SITE INFO" : "SITE INFO"}
               </button>
-            )}
-
-            {/* Top-Right Visual Layers Menu */}
-            <div className="hud-layers-flyout">
               <details className="layers-details-box">
                 <summary>VISUAL LAYERS ▾</summary>
                 {LAYERS.map((l) => (
@@ -603,30 +597,7 @@ export default function App() {
                     <span>{l.label}</span>
                   </label>
                 ))}
-                <div style={{ height: "1px", background: "var(--line-glass)", margin: "6px 0" }} />
-                {UNAVAILABLE_LAYERS.map((l) => (
-                  <label key={l} className="layer-item-chk disabled" title="Requires NASA LRO/LOLA DEM data">
-                    <input type="checkbox" disabled />
-                    <span>{l}</span>
-                  </label>
-                ))}
               </details>
-            </div>
-
-            {/* Overlaid Corner Telemetry Tags */}
-            <div style={{ position: "absolute", bottom: "16px", left: "16px", zIndex: 5, pointerEvents: "none" }}>
-              <div className="hud-caption-tag">SOLAR FLUX (1 AU)</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--amber)" }}>
-                1,361 <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-dim)" }}>W/M²</span>
-              </div>
-            </div>
-
-            <div style={{ position: "absolute", bottom: "16px", right: "16px", zIndex: 5, pointerEvents: "none", textAlign: "right" }}>
-              <div className="hud-caption-tag">EARTH DISTANCE</div>
-              <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--cyan)" }}>
-                {g ? Math.round(g.earth.range_km).toLocaleString() : "384,400"}{" "}
-                <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-dim)" }}>KM</span>
-              </div>
             </div>
           </>
         )}

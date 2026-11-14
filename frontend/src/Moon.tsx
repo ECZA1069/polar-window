@@ -51,15 +51,22 @@ function CameraRig() {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as any;
   const view = useSim((s) => s.view),
-    nonce = useSim((s) => s.viewNonce);
+    nonce = useSim((s) => s.viewNonce),
+    lat = useSim((s) => s.lat),
+    lon = useSim((s) => s.lon);
   useEffect(() => {
-    if (view === "south") camera.position.set(0, -3.2, 0.8);
-    else if (view === "north") camera.position.set(0, 3.2, 0.8);
-    else camera.position.set(3.2, 0.5, 0);
+    if (view === "south") {
+      camera.position.set(0, -3.2, 0.8);
+    } else if (view === "north") {
+      camera.position.set(0, 3.2, 0.8);
+    } else {
+      const targetDir = meToThree(latLonToMe(lat, lon)).normalize().multiplyScalar(3.2);
+      camera.position.copy(targetDir);
+    }
     camera.lookAt(0, 0, 0);
     controls?.target.set(0, 0, 0);
     controls?.update();
-  }, [view, nonce, camera, controls]);
+  }, [view, nonce, camera, controls]); // eslint-disable-line
   return null;
 }
 
@@ -108,37 +115,15 @@ function Terminator({ sun }: { sun: THREE.Vector3 }) {
 }
 
 function Sites() {
-  const sites = useSim((s) => s.sites),
-    siteId = useSim((s) => s.siteId),
-    lat = useSim((s) => s.lat),
+  const lat = useSim((s) => s.lat),
     lon = useSim((s) => s.lon);
-  const select = useSim((s) => s.selectSite);
   return (
     <>
-      {sites.map((s) => {
-        const isSel = siteId === s.id;
-        return (
-          <mesh
-            key={s.id}
-            position={P(s.lat, s.lon, 1.006)}
-            onClick={(e) => {
-              e.stopPropagation();
-              select(s.id);
-            }}
-            onPointerOver={() => (document.body.style.cursor = "pointer")}
-            onPointerOut={() => (document.body.style.cursor = "")}
-          >
-            <sphereGeometry args={[isSel ? 0.026 : 0.014, 16, 16]} />
-            <meshBasicMaterial color={isSel ? "#00f0ff" : "#94a3b8"} />
-          </mesh>
-        );
-      })}
-      {!siteId && (
-        <mesh position={P(lat, lon, 1.006)}>
-          <sphereGeometry args={[0.022, 16, 16]} />
-          <meshBasicMaterial color="#fbbf24" />
-        </mesh>
-      )}
+      <mesh position={P(lat, lon, 1.005)}>
+        <sphereGeometry args={[0.02, 16, 16]} />
+        <meshBasicMaterial color="#00f0ff" />
+      </mesh>
+      <CraterRing lat={lat} lon={lon} radiusDeg={1.4} color="#00f0ff" />
     </>
   );
 }

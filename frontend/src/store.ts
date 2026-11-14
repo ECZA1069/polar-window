@@ -236,9 +236,9 @@ export const useSim = create<State>((set, get) => ({
     graticule: false,
     terminator: true,
     markers: true,
-    craters: true,
+    craters: false,
     indicators: true,
-    axis: true,
+    axis: false,
   },
   tab: "timeline",
   health: "connecting",
@@ -275,7 +275,16 @@ export const useSim = create<State>((set, get) => ({
   set: (p) => set(p as any),
   selectSite: (id) => {
     const s = get().sites.find((x) => x.id === id);
-    if (s) set({ siteId: id, lat: s.lat, lon: s.lon });
+    if (s) {
+      const nextView = s.lat <= -60 ? "south" : s.lat >= 60 ? "north" : "free";
+      set((state) => ({
+        siteId: id,
+        lat: s.lat,
+        lon: s.lon,
+        view: state.view === "rover" ? "rover" : nextView,
+        viewNonce: state.viewNonce + 1,
+      }));
+    }
   },
   setCoords: (lat, lon) => set({ lat, lon, siteId: null }),
   setPanel: (p) => set((s) => ({ panel: { ...s.panel, ...p } })),
