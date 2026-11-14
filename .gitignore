@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+*.log
+
+# Node / Frontend
+node_modules/
+.DS_Store
+*.local
