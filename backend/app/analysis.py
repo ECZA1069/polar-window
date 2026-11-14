@@ -12,19 +12,22 @@ SUN_R_KM = 695700.0
 def ea_series(vecs, lat, lon):
     e, n, u = enu_basis(lat, lon)
     d = np.asarray(vecs, float) - site_vector(lat, lon)
-    rng = np.linalg.norm(d, axis=1)
+    rng = np.maximum(np.linalg.norm(d, axis=1), 1e-3)
     dn = d / rng[:, None]
     enu = np.stack([dn @ e, dn @ n, dn @ u], axis=1)
     el = np.degrees(np.arcsin(np.clip(enu[:, 2], -1, 1)))
     az = np.degrees(np.arctan2(enu[:, 0], enu[:, 1])) % 360.0
-    return {"el": el, "az": az, "range": rng, "enu": enu}
+    return {"el": np.nan_to_num(el), "az": np.nan_to_num(az), "range": np.nan_to_num(rng, nan=384400.0), "enu": np.nan_to_num(enu)}
 
 def intervals(t, v):
     """Intervals where v > 0, with linear-interpolated crossings. Times in the units of t."""
-    t = np.asarray(t, float); v = np.asarray(v, float)
+    t = np.asarray(t, float); v = np.nan_to_num(np.asarray(v, float))
     pos = v > 0
     def cross(a, b):
-        return float(t[a] + (0 - v[a]) / (v[b] - v[a]) * (t[b] - t[a]))
+        denom = float(v[b] - v[a])
+        if abs(denom) < 1e-12:
+            return float(t[a])
+        return float(t[a] + (0 - v[a]) / denom * (t[b] - t[a]))
     out, start, cs = [], None, False
     for k in range(len(t)):
         if pos[k] and start is None:

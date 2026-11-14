@@ -115,31 +115,51 @@ function Terminator({ sun }: { sun: THREE.Vector3 }) {
 }
 
 function Sites() {
-  const lat = useSim((s) => s.lat),
-    lon = useSim((s) => s.lon);
+  const sites = useSim((s) => s.sites),
+    siteId = useSim((s) => s.siteId),
+    lat = useSim((s) => s.lat),
+    lon = useSim((s) => s.lon),
+    select = useSim((s) => s.selectSite);
   return (
     <>
-      <mesh position={P(lat, lon, 1.005)}>
-        <sphereGeometry args={[0.02, 16, 16]} />
-        <meshBasicMaterial color="#00f0ff" />
-      </mesh>
-      <CraterRing lat={lat} lon={lon} radiusDeg={1.4} color="#00f0ff" />
+      {sites.map((s) => {
+        const isSel = siteId === s.id;
+        return (
+          <mesh
+            key={s.id}
+            position={P(s.lat, s.lon, 1.005)}
+            onClick={(e) => {
+              e.stopPropagation();
+              select(s.id);
+            }}
+            onPointerOver={() => (document.body.style.cursor = "pointer")}
+            onPointerOut={() => (document.body.style.cursor = "")}
+          >
+            <sphereGeometry args={[isSel ? 0.022 : 0.011, 16, 16]} />
+            <meshBasicMaterial color={isSel ? "#00f0ff" : "#fbbf24"} />
+          </mesh>
+        );
+      })}
+      <CraterRing lat={lat} lon={lon} radiusDeg={1.5} color="#00f0ff" />
     </>
   );
 }
 
 const LOLA_CRATER_DATA = [
-  { id: "shackleton-connecting-ridge", lat: -89.44, lon: 222.5, radiusDeg: 0.8, psr: true },
+  { id: "shackleton-connecting-ridge", lat: -89.44, lon: 222.5, radiusDeg: 0.85, psr: true },
+  { id: "peak-near-shackleton", lat: -89.68, lon: 166.0, radiusDeg: 0.75, psr: false },
   { id: "malapert-mountain", lat: -86.04, lon: 2.7, radiusDeg: 1.5, psr: false },
-  { id: "nobile-rim-1-viper", lat: -85.39, lon: 37.8, radiusDeg: 2.4, psr: false },
-  { id: "haworth-rim", lat: -87.87, lon: 354.5, radiusDeg: 1.3, psr: true },
-  { id: "de-gerlache-rim", lat: -88.5, lon: 271.0, radiusDeg: 1.1, psr: true },
-  { id: "amundsen-rim", lat: -84.5, lon: 82.8, radiusDeg: 3.2, psr: false },
-  { id: "faustini-rim", lat: -87.3, lon: 77.0, radiusDeg: 1.4, psr: true },
-  { id: "cabeus-crater", lat: -84.9, lon: 324.5, radiusDeg: 3.1, psr: true },
+  { id: "nobile-rim-1-viper", lat: -85.39, lon: 37.8, radiusDeg: 2.3, psr: false },
+  { id: "haworth-rim", lat: -87.87, lon: 354.5, radiusDeg: 1.35, psr: true },
+  { id: "de-gerlache-rim-1", lat: -88.71, lon: 291.0, radiusDeg: 1.15, psr: true },
+  { id: "amundsen-rim-plateau", lat: -84.5, lon: 85.6, radiusDeg: 3.1, psr: false },
+  { id: "faustini-rim-a", lat: -87.15, lon: 77.2, radiusDeg: 1.4, psr: true },
+  { id: "cabeus-crater", lat: -84.9, lon: 324.5, radiusDeg: 2.9, psr: true },
   { id: "shoemaker-rim", lat: -88.1, lon: 45.0, radiusDeg: 1.6, psr: true },
-  { id: "leibnitz-beta-plateau", lat: -85.8, lon: 330.0, radiusDeg: 1.5, psr: false },
-  { id: "peak-near-shackleton", lat: -89.68, lon: 166.0, radiusDeg: 0.7, psr: false },
+  { id: "leibnitz-beta-plateau", lat: -85.8, lon: 331.4, radiusDeg: 1.5, psr: false },
+  { id: "tycho-central-peak", lat: -43.31, lon: 348.64, radiusDeg: 2.6, psr: false },
+  { id: "copernicus-crater-floor", lat: 9.62, lon: 339.92, radiusDeg: 2.8, psr: false },
+  { id: "lrv-expedition-taurus-littrow", lat: 20.19, lon: 30.77, radiusDeg: 1.4, psr: false },
 ];
 
 function CraterRing({ lat, lon, radiusDeg, color = "#00f0ff" }: { lat: number; lon: number; radiusDeg: number; color?: string }) {

@@ -10,7 +10,7 @@ except Exception:
 from .geometry import elevation_azimuth, axis_direction
 
 KERNEL_DIR = Path(os.environ.get("KERNEL_DIR", Path(__file__).resolve().parents[1] / "data" / "kernels"))
-_lock = threading.Lock()
+_lock = threading.RLock()
 _loaded = False
 _fallback = None
 # Required kernels (prefix match). Downloaded by scripts/fetch_assets.py from naif.jpl.nasa.gov.
@@ -226,22 +226,29 @@ def geometry(utc_iso: str, lat: float, lon: float):
     }
 
 
-@lru_cache(maxsize=32)
-def vectors_series(start_utc: str, hours: float, step_min: float):
-    """Sun/Earth Moon-centred MOON_ME positions (km) at regular steps. Offsets are added to the start ET;
-    valid because no leap second is expected inside a window (documented limitation)."""
+@lru_cache(maxsize=64)
+def _vectors_series_cached(start_utc: str, hours: float, step_min: float):
     ensure_loaded()
     et0 = utc_to_et(start_utc)
     n = int(round(hours * 60 / step_min)) + 1
     t = np.arange(n) * step_min * 60.0
-    sun = np.empty((n, 3)); earth = np.empty((n, 3))
+    sun = np.zeros((n, 3), dtype=float)
+    earth = np.zeros((n, 3), dtype=float)
     if sp is not None:
-        with _lock:
-            for i, dt in enumerate(t):
-                sun[i], _ = sp.spkpos("SUN", et0 + dt, "MOON_ME", "LT+S", "MOON")
-                earth[i], _ = sp.spkpos("EARTH", et0 + dt, "MOON_ME", "LT+S", "MOON")
+        for i, dt in enumerate(t):
+            s_vec, _ = sp.spkpos("SUN", float(et0 + dt), "MOON_ME", "LT+S", "MOON")
+            e_vec, _ = sp.spkpos("EARTH", float(et0 + dt), "MOON_ME", "LT+S", "MOON")
+            sun[i] = s_vec
+            earth[i] = e_vec
     else:
         for i, dt in enumerate(t):
-            sun[i] = _fallback.spkpos_lt_s_moon_me("SUN", et0 + dt)
-            earth[i] = _fallback.spkpos_lt_s_moon_me("EARTH", et0 + dt)
+            sun[i] = _fallback.spkpos_lt_s_moon_me("SUN", float(et0 + dt))
+            earth[i] = _fallback.spkpos_lt_s_moon_me("EARTH", float(et0 + dt))
     return t, sun, earth
+
+
+def vectors_series(start_utc: str, hours: float, step_min: float):
+    """Thread-safe Sun/Earth Moon-centred MOON_ME positions (km) at regular steps."""
+    with _lock:
+        t, sun, earth = _vectors_series_cached(start_utc, float(hours), float(step_min))
+        return t.copy(), sun.copy(), earth.copy()

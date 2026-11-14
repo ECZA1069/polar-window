@@ -180,7 +180,8 @@ def iv_ms(iv, t0):
     ]
 
 def r(a, n=3):
-    return np.round(np.asarray(a, float), n).tolist()
+    arr = np.nan_to_num(np.asarray(a, float), nan=0.0, posinf=0.0, neginf=0.0)
+    return np.round(arr, n).tolist()
 
 GEOM_NOTES = [
     "Ephemerides computed via NASA SPICE DE440 & JPL Horizons.",

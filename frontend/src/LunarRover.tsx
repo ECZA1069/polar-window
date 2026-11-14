@@ -4,9 +4,252 @@ import * as THREE from "three";
 import { useSim } from "./store";
 
 /* =========================================================================
-   1. PROCEDURAL REGOLITH TEXTURE & TAURUS-LITTROW TERRAIN PHYSICS FIELD
+   1. REAL LUNAR CRATERS, FRACTURED BOULDERS & PHOTOREALISTIC REGOLITH
    ========================================================================= */
 
+export interface LunarCraterDef {
+  id: string;
+  siteId?: string;
+  name: string;
+  x: number;
+  z: number;
+  radius: number;
+  depth: number;
+  rimHeight: number;
+  centralPeak?: number;
+  psr?: boolean;
+  orangeSoil?: boolean;
+}
+
+// 8 Real-Morphology Sculpted Lunar Craters across the 320m x 320m Surface Sector
+export const SURFACE_CRATERS: LunarCraterDef[] = [
+  {
+    id: "camelot",
+    siteId: "lrv-expedition-taurus-littrow",
+    name: "Camelot Crater (Station 5)",
+    x: 24,
+    z: 8,
+    radius: 16,
+    depth: 3.4,
+    rimHeight: 1.15,
+  },
+  {
+    id: "shorty",
+    siteId: "lrv-expedition-taurus-littrow",
+    name: "Shorty Crater (Orange Soil)",
+    x: -24,
+    z: 18,
+    radius: 13,
+    depth: 2.9,
+    rimHeight: 0.95,
+    orangeSoil: true,
+  },
+  {
+    id: "shackleton",
+    siteId: "shackleton-connecting-ridge",
+    name: "Shackleton Cold-Trap Crater",
+    x: 2,
+    z: -36,
+    radius: 21,
+    depth: 4.8,
+    rimHeight: 1.45,
+    psr: true,
+  },
+  {
+    id: "cabeus",
+    siteId: "cabeus-crater",
+    name: "Cabeus LCROSS Impact Basin",
+    x: 42,
+    z: -34,
+    radius: 22,
+    depth: 4.6,
+    rimHeight: 1.35,
+    psr: true,
+    centralPeak: 1.4,
+  },
+  {
+    id: "nobile",
+    siteId: "nobile-rim-1-viper",
+    name: "Nobile VIPER Ice Crater",
+    x: -38,
+    z: -28,
+    radius: 15,
+    depth: 3.2,
+    rimHeight: 1.05,
+    psr: true,
+  },
+  {
+    id: "tycho-ray",
+    siteId: "tycho-central-peak",
+    name: "Tycho Terraced Peak Crater",
+    x: 44,
+    z: 36,
+    radius: 18,
+    depth: 3.8,
+    rimHeight: 1.25,
+    centralPeak: 1.9,
+  },
+  {
+    id: "haworth",
+    siteId: "haworth-rim",
+    name: "Haworth Polar Pit",
+    x: -46,
+    z: -2,
+    radius: 16,
+    depth: 3.7,
+    rimHeight: 1.1,
+    psr: true,
+  },
+  {
+    id: "lara",
+    siteId: "amundsen-rim-plateau",
+    name: "Amundsen-Lara Rim Crater",
+    x: -4,
+    z: 42,
+    radius: 14,
+    depth: 2.8,
+    rimHeight: 0.9,
+  },
+];
+
+// Deterministic secondary micro-craters (1.8m - 4.5m diameter) for authentic pockmarked lunar surface
+const MICRO_CRATERS = Array.from({ length: 28 }, (_, i) => {
+  const angle = i * 2.39996 + 0.5;
+  const dist = 12 + ((i * 17) % 68);
+  return {
+    x: Math.cos(angle) * dist,
+    z: Math.sin(angle) * dist,
+    radius: 1.8 + (i % 5) * 0.65,
+    depth: 0.38 + (i % 4) * 0.16,
+    rim: 0.14 + (i % 3) * 0.06,
+  };
+});
+
+export interface LunarRockDef {
+  x: number;
+  z: number;
+  scale: [number, number, number];
+  radius: number;
+  rot: [number, number, number];
+  variant: number;
+  driveable: boolean; // rocks with radius < 0.52m can be driven over by individual wheels!
+}
+
+// 56 Realistic Fractured Lunar Boulders & Ejecta Cobbles clustered around crater rims
+export const SURFACE_BOULDERS: LunarRockDef[] = (() => {
+  const list: LunarRockDef[] = [
+    // Hand-placed prominent boulders near spawn & Camelot / Shorty rims
+    { x: 7.5, z: 5.5, scale: [0.85, 0.62, 0.75], radius: 0.75, rot: [0.2, 0.8, 0.1], variant: 0, driveable: false },
+    { x: -4.5, z: 9.2, scale: [0.46, 0.3, 0.44], radius: 0.42, rot: [0.1, 1.4, -0.2], variant: 1, driveable: true },
+    { x: 11.2, z: -5.4, scale: [1.15, 0.85, 0.98], radius: 1.0, rot: [-0.2, 2.1, 0.15], variant: 2, driveable: false },
+    { x: -13.5, z: 3.2, scale: [0.92, 0.7, 0.84], radius: 0.82, rot: [0.3, 0.4, -0.1], variant: 3, driveable: false },
+    { x: 3.8, z: 9.8, scale: [0.38, 0.24, 0.36], radius: 0.36, rot: [0.4, 1.1, 0.2], variant: 1, driveable: true },
+    { x: -2.2, z: 6.4, scale: [0.34, 0.2, 0.32], radius: 0.32, rot: [0.1, 0.5, 0.3], variant: 2, driveable: true },
+    { x: 5.2, z: -9.5, scale: [0.68, 0.5, 0.62], radius: 0.6, rot: [0.2, 1.9, -0.2], variant: 0, driveable: false },
+  ];
+
+  // Add ejecta boulder rings around each major crater rim
+  SURFACE_CRATERS.forEach((c, ci) => {
+    const count = 6;
+    for (let j = 0; j < count; j++) {
+      const ang = (j / count) * Math.PI * 2 + ci * 0.7;
+      const rDist = c.radius * (0.92 + ((j * 3 + ci) % 5) * 0.08);
+      const bx = c.x + Math.cos(ang) * rDist;
+      const bz = c.z + Math.sin(ang) * rDist;
+      const baseSize = 0.32 + ((ci + j * 2) % 6) * 0.16;
+      const isSmall = baseSize < 0.52;
+      list.push({
+        x: bx,
+        z: bz,
+        scale: [baseSize * 1.18, baseSize * 0.76, baseSize * 0.96],
+        radius: baseSize,
+        rot: [(j * 0.3) % 1, ang, ((ci + j) * 0.2) % 1],
+        variant: (ci + j) % 4,
+        driveable: isSmall,
+      });
+    }
+  });
+
+  return list;
+})();
+
+// Evaluate realistic crater profile height contribution at (x, z)
+function evalCraterDisplacement(dx: number, dz: number, radius: number, depth: number, rimHeight: number, centralPeak = 0): number {
+  const r = Math.sqrt(dx * dx + dz * dz);
+  const u = r / radius;
+  if (u > 2.3) return 0;
+
+  let h = 0;
+  if (u < 1.0) {
+    // Realistic flat-bottom / parabolic bowl interior with steep inner wall near u = 1
+    const bowl = Math.pow(u, 2.4);
+    h -= depth * (1.0 - bowl);
+    // Raised rim transition at u -> 1
+    h += rimHeight * Math.pow(u, 3.5);
+    // Optional central rebound peak for complex lunar craters
+    if (centralPeak > 0 && u < 0.32) {
+      const pu = u / 0.32;
+      h += centralPeak * Math.cos(pu * Math.PI * 0.5) * Math.cos(pu * Math.PI * 0.5);
+    }
+  } else {
+    // Raised ejecta rim decaying outward as exp(-(u-1))
+    const out = u - 1.0;
+    h += rimHeight * Math.exp(-out * 2.8) * Math.cos(out * 1.1);
+  }
+  return h;
+}
+
+// Continuous terrain height function (excluding small rocks)
+export function getLunarHeight(x: number, z: number): number {
+  // Large-scale lunar valley & highland undulations
+  const roll1 = Math.sin(x * 0.028) * Math.cos(z * 0.032) * 1.35;
+  const roll2 = Math.sin(x * 0.011 + 1.4) * Math.cos(z * 0.014) * 2.2;
+  // Regolith micro-dunes & ripples
+  const ripples =
+    Math.sin(x * 0.24 + z * 0.17) * Math.cos(z * 0.29 - x * 0.14) * 0.14 +
+    Math.sin(x * 0.65 - z * 0.52) * 0.035;
+
+  // Surrounding South & North Massifs at sector perimeter
+  const massifWest = x < -62 ? Math.pow((-x - 62) * 0.045, 1.8) * 4.5 : 0;
+  const massifNorth = z < -68 ? Math.pow((-z - 68) * 0.038, 2.0) * 5.2 : 0;
+
+  let craterH = 0;
+  for (let i = 0; i < SURFACE_CRATERS.length; i++) {
+    const c = SURFACE_CRATERS[i];
+    craterH += evalCraterDisplacement(x - c.x, z - c.z, c.radius, c.depth, c.rimHeight, c.centralPeak);
+  }
+
+  for (let i = 0; i < MICRO_CRATERS.length; i++) {
+    const mc = MICRO_CRATERS[i];
+    const dx = x - mc.x;
+    const dz = z - mc.z;
+    if (Math.abs(dx) < mc.radius * 2 && Math.abs(dz) < mc.radius * 2) {
+      craterH += evalCraterDisplacement(dx, dz, mc.radius, mc.depth, mc.rim, 0);
+    }
+  }
+
+  return roll1 + roll2 + ripples + massifWest + massifNorth + craterH;
+}
+
+// Per-wheel contact height including driveable lunar rocks!
+export function getWheelGroundHeight(x: number, z: number): number {
+  let h = getLunarHeight(x, z);
+  for (let i = 0; i < SURFACE_BOULDERS.length; i++) {
+    const b = SURFACE_BOULDERS[i];
+    if (!b.driveable) continue;
+    const dx = x - b.x;
+    const dz = z - b.z;
+    const dSq = dx * dx + dz * dz;
+    const r = b.radius * 1.15;
+    if (dSq < r * r) {
+      const dome = Math.sqrt(Math.max(0, 1 - dSq / (r * r))) * b.scale[1] * 0.85;
+      h += dome;
+    }
+  }
+  return h;
+}
+
+// High-detail photorealistic lunar regolith texture with micro-craters & mineral grain
 function createPhotorealisticRegolithCanvas(): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   canvas.width = 1024;
@@ -14,30 +257,31 @@ function createPhotorealisticRegolithCanvas(): HTMLCanvasElement {
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
 
-  ctx.fillStyle = "#86898f";
+  ctx.fillStyle = "#888b92";
   ctx.fillRect(0, 0, 1024, 1024);
 
   const imgData = ctx.getImageData(0, 0, 1024, 1024);
   const data = imgData.data;
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * 36;
-    const base = 138 + noise;
+    const grain = (Math.random() - 0.5) * 42;
+    const fine = ((i * 13) % 19) - 9;
+    const base = 136 + grain + fine * 0.4;
     data[i] = Math.min(255, Math.max(0, base));
-    data[i + 1] = Math.min(255, Math.max(0, base - 2));
-    data[i + 2] = Math.min(255, Math.max(0, base - 4));
+    data[i + 1] = Math.min(255, Math.max(0, base - 1));
+    data[i + 2] = Math.min(255, Math.max(0, base - 3));
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // Surface craterlets
-  for (let c = 0; c < 140; c++) {
+  // Hundreds of multi-scale impact craterlets with sunlit/shadowed rims
+  for (let c = 0; c < 220; c++) {
     const cx = Math.random() * 1024;
     const cy = Math.random() * 1024;
-    const r = 2 + Math.random() * 22;
-    const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
-    grad.addColorStop(0, "rgba(42,44,49,0.7)");
-    grad.addColorStop(0.7, "rgba(85,88,94,0.38)");
-    grad.addColorStop(0.9, "rgba(170,174,182,0.45)");
-    grad.addColorStop(1, "rgba(138,141,147,0)");
+    const r = 1.5 + Math.pow(Math.random(), 2.2) * 26;
+    const grad = ctx.createRadialGradient(cx - r * 0.18, cy - r * 0.18, r * 0.05, cx, cy, r);
+    grad.addColorStop(0, "rgba(32,34,39,0.78)");
+    grad.addColorStop(0.62, "rgba(75,78,84,0.45)");
+    grad.addColorStop(0.86, "rgba(182,186,194,0.52)");
+    grad.addColorStop(1, "rgba(136,139,146,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
@@ -47,64 +291,132 @@ function createPhotorealisticRegolithCanvas(): HTMLCanvasElement {
   return canvas;
 }
 
-function useRegolithTexture() {
+// Photorealistic pitted Lunar Breccia & Basalt Rock Texture
+function createLunarRockTextureCanvas(): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return canvas;
+
+  ctx.fillStyle = "#686d75";
+  ctx.fillRect(0, 0, 512, 512);
+
+  const imgData = ctx.getImageData(0, 0, 512, 512);
+  const d = imgData.data;
+  for (let y = 0; y < 512; y++) {
+    for (let x = 0; x < 512; x++) {
+      const idx = (y * 512 + x) * 4;
+      // Layered rock strata & plagioclase clasts
+      const band = Math.sin(x * 0.04 + y * 0.09) * 14 + Math.cos(x * 0.15 - y * 0.11) * 9;
+      const speckle = Math.random() > 0.92 ? 38 : Math.random() < 0.08 ? -32 : (Math.random() - 0.5) * 24;
+      const val = Math.min(245, Math.max(20, 108 + band + speckle));
+      d[idx] = val;
+      d[idx + 1] = val - 2;
+      d[idx + 2] = val - 5;
+      d[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // Vesicles, cleavage cracks & micrometeorite zap pits
+  for (let i = 0; i < 95; i++) {
+    const px = Math.random() * 512;
+    const py = Math.random() * 512;
+    const pr = 1.5 + Math.random() * 9;
+    const g = ctx.createRadialGradient(px, py, 0, px, py, pr);
+    g.addColorStop(0, "rgba(18,20,24,0.85)");
+    g.addColorStop(0.75, "rgba(155,160,168,0.35)");
+    g.addColorStop(1, "rgba(104,109,117,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(px, py, pr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  return canvas;
+}
+
+// Procedural Fractured Lunar Boulder Geometry Generator (High-Detail Faceted Rock)
+function createFracturedRockGeometry(seed: number, detail = 3): THREE.BufferGeometry {
+  const baseGeo = new THREE.IcosahedronGeometry(1, detail);
+  // Convert to non-indexed so flat/sharp fracture facets and smooth normals blend naturally
+  const geo = baseGeo.toNonIndexed();
+  const pos = geo.attributes.position;
+
+  // Deterministic pseudo-random fracture planes for this rock variant
+  const planes = Array.from({ length: 7 }, (_, i) => {
+    const theta = (seed * 1.73 + i * 2.19) % (Math.PI * 2);
+    const phi = ((seed * 0.91 + i * 1.37) % Math.PI) - Math.PI * 0.5;
+    return new THREE.Vector3(
+      Math.cos(phi) * Math.cos(theta),
+      Math.sin(phi),
+      Math.cos(phi) * Math.sin(theta)
+    ).normalize();
+  });
+
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    v.fromBufferAttribute(pos, i);
+    const dir = v.clone().normalize();
+
+    // Multi-frequency 3D rock noise
+    const n1 =
+      Math.sin(dir.x * 3.2 + seed * 1.7) *
+      Math.cos(dir.y * 2.9 - seed * 0.8) *
+      Math.sin(dir.z * 3.5 + seed * 2.3);
+    const n2 =
+      Math.sin(dir.x * 7.5 - dir.z * 6.2 + seed) *
+      Math.cos(dir.y * 8.1 + dir.x * 5.4) *
+      0.12;
+    const n3 = Math.sin(dir.x * 16.0 + dir.y * 14.0 - dir.z * 15.0) * 0.035;
+
+    // Planar rock cleavage / angular chipping
+    let fractureCut = 1.0;
+    for (let p = 0; p < planes.length; p++) {
+      const dot = dir.dot(planes[p]);
+      if (dot > 0.58) {
+        fractureCut -= (dot - 0.58) * 0.55;
+      }
+    }
+
+    let r = (0.88 + n1 * 0.22 + n2 + n3) * fractureCut;
+    v.copy(dir).multiplyScalar(r);
+
+    // Flatten bottom slightly so boulder sits naturally embedded in lunar regolith
+    if (v.y < -0.45) {
+      v.y = -0.45 + (v.y + 0.45) * 0.25;
+    }
+
+    pos.setXYZ(i, v.x, v.y, v.z);
+  }
+
+  geo.computeVertexNormals();
+  return geo;
+}
+
+function useLunarTextures() {
   return useMemo(() => {
-    const canvas = createPhotorealisticRegolithCanvas();
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.wrapS = THREE.RepeatWrapping;
-    tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(24, 24);
-    tex.anisotropy = 8;
-    return tex;
+    const regCanvas = createPhotorealisticRegolithCanvas();
+    const regolithTex = new THREE.CanvasTexture(regCanvas);
+    regolithTex.wrapS = THREE.RepeatWrapping;
+    regolithTex.wrapT = THREE.RepeatWrapping;
+    regolithTex.repeat.set(28, 28);
+    regolithTex.anisotropy = 8;
+
+    const rockCanvas = createLunarRockTextureCanvas();
+    const rockTex = new THREE.CanvasTexture(rockCanvas);
+    rockTex.wrapS = THREE.RepeatWrapping;
+    rockTex.wrapT = THREE.RepeatWrapping;
+    rockTex.repeat.set(2, 2);
+    rockTex.anisotropy = 8;
+
+    return { regolithTex, rockTex };
   }, []);
 }
 
-// Continuous terrain height function for Taurus-Littrow valley floor + craters & ridges
-export function getLunarHeight(x: number, z: number): number {
-  const roll1 = Math.sin(x * 0.032) * Math.cos(z * 0.035) * 1.65;
-  const roll2 = Math.sin(x * 0.012 + 1.4) * Math.cos(z * 0.015) * 2.8;
-  // Micro-undulations for realistic suspension articulation
-  const ripples = Math.sin(x * 0.22 + z * 0.15) * Math.cos(z * 0.27 - x * 0.12) * 0.18;
-  const massifSlope = x < -25 ? Math.pow((-x - 25) * 0.045, 1.8) * 4.5 : 0;
-  const northMassif = z < -40 ? Math.pow((-z - 40) * 0.038, 2) * 5.2 : 0;
-
-  // Primary Camelot Crater (with raised rim for 1/6-G jumps)
-  const cdx = x - 16;
-  const cdz = z - 8;
-  const dist1 = Math.sqrt(cdx * cdx + cdz * cdz);
-  const crater1 =
-    dist1 < 14
-      ? (Math.cos((dist1 / 14) * Math.PI) - 1.0) * 1.45 + Math.exp(-Math.pow(dist1 - 12.5, 2) / 3.5) * 0.65
-      : 0;
-
-  // Secondary Shorty Crater
-  const sdx = x + 18;
-  const sdz = z - 22;
-  const dist2 = Math.sqrt(sdx * sdx + sdz * sdz);
-  const crater2 =
-    dist2 < 10
-      ? (Math.cos((dist2 / 10) * Math.PI) - 1.0) * 1.1 + Math.exp(-Math.pow(dist2 - 8.8, 2) / 2.5) * 0.55
-      : 0;
-
-  return roll1 + roll2 + ripples + massifSlope + northMassif + crater1 + crater2;
-}
-
-// Surface boulders with collision radii
-const SURFACE_BOULDERS: { pos: [number, number, number]; scale: number }[] = [
-  { pos: [7, 0, 5], scale: 0.65 },
-  { pos: [-4, 0, 9], scale: 0.48 },
-  { pos: [12, 0, -6], scale: 0.9 },
-  { pos: [-14, 0, 3], scale: 0.75 },
-  { pos: [4, 0, -11], scale: 0.52 },
-  { pos: [18, 0, 12], scale: 1.15 },
-  { pos: [-8, 0, 19], scale: 0.6 },
-  { pos: [-2, 0, -4], scale: 0.38 },
-  { pos: [9, 0, 18], scale: 0.72 },
-  { pos: [-15, 0, -8], scale: 0.85 },
-];
-
 /* =========================================================================
-   2. TRACY'S ROCK (Apollo 17 Station 6) & Harrison Schmitt Figure
+   2. TRACY'S ROCK (Apollo 17 Station 6 Split Boulder) & Harrison Schmitt
    ========================================================================= */
 
 function ApolloAstronaut({
@@ -180,48 +492,79 @@ function ApolloAstronaut({
   );
 }
 
-function TracysRock({ position = [-9, 0, -14] }: { position?: [number, number, number] }) {
-  const rockMat = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: "#555b63",
-        roughness: 0.95,
-        metalness: 0.05,
-      }),
-    []
-  );
-
+function TracysRock({
+  position = [-10, 0, -14],
+  rockMat,
+  rockGeos,
+}: {
+  position?: [number, number, number];
+  rockMat: THREE.Material;
+  rockGeos: THREE.BufferGeometry[];
+}) {
   return (
     <group position={position}>
-      <mesh position={[-1.8, 2.2, 0]} rotation={[0.18, 0.35, -0.09]} castShadow receiveShadow material={rockMat}>
-        <dodecahedronGeometry args={[3.4, 2]} />
-      </mesh>
-      <mesh position={[2.4, 1.9, -0.4]} rotation={[-0.12, -0.42, 0.14]} castShadow receiveShadow material={rockMat}>
-        <dodecahedronGeometry args={[2.9, 2]} />
-      </mesh>
-      <mesh position={[-3.8, 0.7, 1.8]} rotation={[0.4, 0.7, 0.2]} castShadow receiveShadow material={rockMat}>
-        <dodecahedronGeometry args={[1.3, 1]} />
-      </mesh>
-      <mesh position={[0.4, 0.5, 2.4]} rotation={[0.2, 0.1, 0.6]} castShadow receiveShadow material={rockMat}>
-        <dodecahedronGeometry args={[0.95, 1]} />
-      </mesh>
-      <mesh position={[4.1, 0.6, 1.4]} rotation={[-0.3, 0.5, -0.2]} castShadow receiveShadow material={rockMat}>
-        <dodecahedronGeometry args={[1.2, 1]} />
-      </mesh>
-      <ApolloAstronaut position={[-4.8, 0, 2.8]} rotation={[0, 1.25, 0]} />
+      {/* Main West Split Block */}
+      <mesh
+        geometry={rockGeos[0]}
+        position={[-1.9, 1.85, 0]}
+        scale={[4.2, 3.3, 3.6]}
+        rotation={[0.12, 0.42, -0.06]}
+        castShadow
+        receiveShadow
+        material={rockMat}
+      />
+      {/* East Split Cleavage Block */}
+      <mesh
+        geometry={rockGeos[1]}
+        position={[2.5, 1.65, -0.35]}
+        scale={[3.5, 2.9, 3.1]}
+        rotation={[-0.08, -0.55, 0.11]}
+        castShadow
+        receiveShadow
+        material={rockMat}
+      />
+      {/* Talus & Spall Fragments */}
+      <mesh
+        geometry={rockGeos[2]}
+        position={[-4.2, 0.65, 2.0]}
+        scale={[1.65, 1.15, 1.4]}
+        rotation={[0.2, 0.9, 0.1]}
+        castShadow
+        receiveShadow
+        material={rockMat}
+      />
+      <mesh
+        geometry={rockGeos[3]}
+        position={[0.5, 0.45, 2.6]}
+        scale={[1.15, 0.8, 1.05]}
+        rotation={[0.1, 0.2, 0.3]}
+        castShadow
+        receiveShadow
+        material={rockMat}
+      />
+      <mesh
+        geometry={rockGeos[0]}
+        position={[4.3, 0.55, 1.6]}
+        scale={[1.4, 0.95, 1.25]}
+        rotation={[-0.2, 1.2, -0.1]}
+        castShadow
+        receiveShadow
+        material={rockMat}
+      />
+      <ApolloAstronaut position={[-5.1, 0.1, 2.9]} rotation={[0, 1.25, 0]} />
     </group>
   );
 }
 
 /* =========================================================================
-   3. DETAILED NASA APOLLO LUNAR ROVING VEHICLE (With Active Suspension)
+   3. DETAILED NASA APOLLO LUNAR ROVING VEHICLE (With Active 4-Wheel Suspension)
    ========================================================================= */
 
 interface LRVModelProps {
   steeringAngle: number;
   wheelRotation: number;
   headlightsOn: boolean;
-  wheelOffsets: [number, number, number, number]; // FL, FR, RL, RR vertical travel (m)
+  wheelOffsets: [number, number, number, number];
 }
 
 export const ApolloLRV = React.forwardRef<THREE.Group, LRVModelProps>(
@@ -297,18 +640,24 @@ export const ApolloLRV = React.forwardRef<THREE.Group, LRVModelProps>(
     }) => {
       const x = isLeft ? -0.88 : 0.88;
       const z = isFront ? 1.15 : -1.15;
-      // Apollo LRV featured 4-wheel double-Ackermann steering (rear wheels counter-steer)
       const steer = isFront ? steeringAngle : -steeringAngle * 0.55;
 
       return (
         <group position={[x, 0.42 + suspOffset, z]}>
-          {/* Double-wishbone suspension A-arm linking chassis to wheel hub */}
+          {/* Articulated Upper & Lower Double-Wishbone Suspension Arms + Coilover Damper */}
           <mesh
-            position={[isLeft ? 0.24 : -0.24, -suspOffset * 0.5, 0]}
+            position={[isLeft ? 0.24 : -0.24, -suspOffset * 0.5 + 0.04, 0]}
             rotation={[0, 0, (isLeft ? -1 : 1) * Math.atan2(suspOffset, 0.42)]}
             material={strutMat}
           >
-            <boxGeometry args={[0.46, 0.045, 0.12]} />
+            <boxGeometry args={[0.46, 0.035, 0.09]} />
+          </mesh>
+          <mesh
+            position={[isLeft ? 0.24 : -0.24, -suspOffset * 0.5 - 0.05, 0]}
+            rotation={[0, 0, (isLeft ? -1 : 1) * Math.atan2(suspOffset, 0.42)]}
+            material={strutMat}
+          >
+            <boxGeometry args={[0.46, 0.035, 0.09]} />
           </mesh>
 
           <group position={[isLeft ? 0.05 : -0.05, 0.26, 0]}>
@@ -511,7 +860,7 @@ export const ApolloLRV = React.forwardRef<THREE.Group, LRVModelProps>(
               position={[0, 0.25, 0.1]}
               target-position={[0, -0.5, 22]}
               intensity={6.0}
-              distance={50}
+              distance={55}
               angle={Math.PI / 4.2}
               penumbra={0.35}
               castShadow
@@ -563,7 +912,7 @@ function TireTracksMesh({ tracks }: { tracks: TrackPoint[] }) {
   const trackMat = useMemo(
     () =>
       new THREE.MeshBasicMaterial({
-        color: "#4a4f57",
+        color: "#434850",
         transparent: true,
         opacity: 0.85,
         depthWrite: false,
@@ -582,7 +931,7 @@ function TireTracksMesh({ tracks }: { tracks: TrackPoint[] }) {
     const len = tracks.length;
     for (let i = 0; i < len; i++) {
       const t = tracks[i];
-      dummy.position.set(t.x, t.y + 0.012, t.z);
+      dummy.position.set(t.x, t.y + 0.014, t.z);
       dummy.rotation.set(0, t.heading, 0);
       dummy.updateMatrix();
       meshRef.current.setMatrixAt(i, dummy.matrix);
@@ -591,7 +940,7 @@ function TireTracksMesh({ tracks }: { tracks: TrackPoint[] }) {
     meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
-  return <instancedMesh ref={meshRef} args={[quadGeo, trackMat, 700]} frustumCulled={false} />;
+  return <instancedMesh ref={meshRef} args={[quadGeo, trackMat, 750]} frustumCulled={false} />;
 }
 
 /* =========================================================================
@@ -609,7 +958,7 @@ function LunarDustEmitter({
   velocity: number;
   heading: number;
 }) {
-  const count = 48;
+  const count = 52;
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
 
@@ -651,7 +1000,6 @@ function LunarDustEmitter({
           p.y = -100;
         }
       } else {
-        // Real 1/6-G lunar ballistic gravity (no air drag!)
         p.vy -= 1.622 * dt;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
@@ -676,19 +1024,18 @@ function LunarDustEmitter({
 }
 
 /* =========================================================================
-   6. 3D LUNAR ROVER CANVAS EXPERIENCE (1/6-G Physics, Suspension & Collisions)
+   6. 3D LUNAR ROVER CANVAS EXPERIENCE (Multi-Crater Terrain & 4-Wheel Physics)
    ========================================================================= */
 
 export default function LunarRoverExperience() {
   const sim = useSim();
   const roverState = sim.rover;
   const setRover = sim.setRover;
-  const regolithTex = useRegolithTexture();
+  const { regolithTex, rockTex } = useLunarTextures();
 
   const roverRef = useRef<THREE.Group>(null);
   const keys = useRef<{ [k: string]: boolean }>({});
 
-  // 360° Mouse Look Orbit State
   const mouseOrbit = useRef({
     yaw: 0,
     pitch: 0.28,
@@ -699,27 +1046,27 @@ export default function LunarRoverExperience() {
     userControlled: false,
   });
 
-  // Track prints history
   const [tracks, setTracks] = useState<TrackPoint[]>([]);
   const lastTrackPos = useRef(new THREE.Vector2(0, 14));
   const [wheelOffsets, setWheelOffsets] = useState<[number, number, number, number]>([0, 0, 0, 0]);
 
-  // Full 1/6-G Rigid-Body + 4-Wheel Spring-Damper Physics State
   const physics = useRef({
     x: roverState.x,
     z: roverState.z,
-    y: getLunarHeight(roverState.x, roverState.z) + 0.42,
-    vy: 0,               // vertical velocity (m/s) under 1.622 m/s² lunar gravity
-    vx: 0,               // world X velocity (for regolith lateral drift)
-    vz: 0,               // world Z velocity
+    y: getWheelGroundHeight(roverState.x, roverState.z) + 0.42,
+    vy: 0,
+    vx: 0,
+    vz: 0,
     heading: roverState.heading,
-    forwardSpeed: 0,     // wheel drive speed
+    forwardSpeed: 0,
     steering: 0,
     wheelAngle: 0,
     pitch: 0,
     roll: 0,
     pitchVel: 0,
     rollVel: 0,
+    wheelComp: [0, 0, 0, 0],
+    wheelVel: [0, 0, 0, 0],
     airborne: false,
     gForce: 0.16,
     slipDeg: 0,
@@ -728,6 +1075,28 @@ export default function LunarRoverExperience() {
   });
 
   const threeCamera = useThree((s) => s.camera);
+
+  // Listen for Crater Teleport events from RoverHUD
+  useEffect(() => {
+    const onTeleport = (e: Event) => {
+      const detail = (e as CustomEvent<{ x: number; z: number; heading: number }>).detail;
+      if (!detail) return;
+      const p = physics.current;
+      p.x = detail.x;
+      p.z = detail.z;
+      p.y = getWheelGroundHeight(detail.x, detail.z) + 0.45;
+      p.vx = 0;
+      p.vz = 0;
+      p.vy = 0;
+      p.forwardSpeed = 0;
+      p.heading = detail.heading;
+      mouseOrbit.current.yaw = detail.heading;
+      setTracks([]);
+      lastTrackPos.current.set(detail.x, detail.z);
+    };
+    window.addEventListener("rover-teleport", onTeleport);
+    return () => window.removeEventListener("rover-teleport", onTeleport);
+  }, []);
 
   // Mouse & Pointer listeners for 360° Cursor Look Around
   useEffect(() => {
@@ -766,7 +1135,7 @@ export default function LunarRoverExperience() {
       mouseOrbit.current.distance = THREE.MathUtils.clamp(
         mouseOrbit.current.distance + e.deltaY * 0.005,
         3.0,
-        20.0
+        22.0
       );
     };
 
@@ -783,7 +1152,7 @@ export default function LunarRoverExperience() {
     };
   }, []);
 
-  // Safe Keyboard Event Handling
+  // Keyboard Event Handling
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
       if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) {
@@ -805,9 +1174,8 @@ export default function LunarRoverExperience() {
       if (e.code === "Digit2") setRover({ driveMode: "nominal" });
       if (e.code === "Digit3") setRover({ driveMode: "overdrive" });
       if (e.code === "KeyJ") {
-        // 1/6-G Suspension Jump / Hop test
         if (!physics.current.airborne) {
-          physics.current.vy = 2.6;
+          physics.current.vy = 2.85;
           physics.current.airborne = true;
         }
       }
@@ -818,7 +1186,7 @@ export default function LunarRoverExperience() {
         const p = physics.current;
         p.x = 0;
         p.z = 14;
-        p.y = getLunarHeight(0, 14) + 0.42;
+        p.y = getWheelGroundHeight(0, 14) + 0.42;
         p.vy = 0;
         p.vx = 0;
         p.vz = 0;
@@ -852,20 +1220,82 @@ export default function LunarRoverExperience() {
     };
   }, [setRover, sim]);
 
+  // High-resolution 240x240 vertex-colored lunar terrain mesh with realistic craters & cold traps
   const terrainGeo = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(280, 280, 180, 180);
+    const geo = new THREE.PlaneGeometry(320, 320, 240, 240);
     geo.rotateX(-Math.PI / 2);
     const pos = geo.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+    const c = new THREE.Color();
+
     for (let i = 0; i < pos.count; i++) {
       const px = pos.getX(i);
       const pz = pos.getZ(i);
-      pos.setY(i, getLunarHeight(px, pz));
+      const py = getLunarHeight(px, pz);
+      pos.setY(i, py);
+
+      // Base lunar mare/highland albedo
+      c.setRGB(0.62, 0.64, 0.68);
+
+      // Shade crater rims (bright ejecta), floors (dark basalt/PSR cold traps), & Shorty orange glass soil
+      for (let k = 0; k < SURFACE_CRATERS.length; k++) {
+        const cr = SURFACE_CRATERS[k];
+        const dx = px - cr.x;
+        const dz = pz - cr.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        const u = dist / cr.radius;
+        if (u < 0.78) {
+          if (cr.psr) {
+            // Deep cold-trap shadow floor
+            c.lerp(new THREE.Color(0.14, 0.16, 0.2), (1 - u / 0.78) * 0.85);
+          } else if (cr.orangeSoil) {
+            // Apollo 17 Shorty Crater volcanic orange glass soil!
+            c.lerp(new THREE.Color(0.68, 0.42, 0.26), (1 - u / 0.78) * 0.65);
+          } else {
+            c.lerp(new THREE.Color(0.42, 0.44, 0.48), (1 - u / 0.78) * 0.55);
+          }
+        } else if (u >= 0.78 && u < 1.55) {
+          // Bright fresh Copernican ejecta blanket on crater rim
+          const rimFactor = Math.sin(((u - 0.78) / 0.77) * Math.PI);
+          c.lerp(new THREE.Color(0.84, 0.86, 0.9), rimFactor * 0.48);
+        }
+      }
+
+      colors[i * 3] = c.r;
+      colors[i * 3 + 1] = c.g;
+      colors[i * 3 + 2] = c.b;
     }
+
+    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
     return geo;
   }, []);
 
-  // Main 1/6-G Physics & Suspension Loop
+  // 4 Distinct Procedural Fractured Lunar Boulder Geometries & Material
+  const rockGeos = useMemo(
+    () => [
+      createFracturedRockGeometry(1.1, 3),
+      createFracturedRockGeometry(2.7, 3),
+      createFracturedRockGeometry(4.3, 3),
+      createFracturedRockGeometry(6.9, 3),
+    ],
+    []
+  );
+
+  const rockMat = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        map: rockTex,
+        bumpMap: rockTex,
+        bumpScale: 0.08,
+        color: "#888d96",
+        roughness: 0.92,
+        metalness: 0.06,
+      }),
+    [rockTex]
+  );
+
+  // Main 1/6-G Multi-Body 4-Wheel Physics & Suspension Loop
   useFrame((state, delta) => {
     const dt = Math.min(delta, 0.05);
     const k = keys.current;
@@ -879,34 +1309,35 @@ export default function LunarRoverExperience() {
     const brake = k["Space"];
     const boost = k["ShiftLeft"] || k["ShiftRight"];
 
-    // Speed & Torque profiles per Drive Mode (Apollo LRV nominal max ~14 km/h, record 18 km/h, Overdrive 26 km/h)
     const modeMaxSpeed =
-      boost || curMode === "overdrive" ? 7.2 : curMode === "eco" ? 2.8 : 4.2;
-    const accel = boost || curMode === "overdrive" ? 4.4 : curMode === "eco" ? 2.0 : 3.0;
+      boost || curMode === "overdrive" ? 7.4 : curMode === "eco" ? 2.8 : 4.3;
+    const accel = boost || curMode === "overdrive" ? 4.8 : curMode === "eco" ? 2.1 : 3.2;
     const rollingResistance = 0.85;
 
-    // Slope gravity effect along rover pitch
-    const slopeGravity = -Math.sin(p.pitch) * 1.622 * 2.1;
+    // Longitudinal & lateral slope gravity components from real crater walls
+    const LUNAR_G = 1.622;
+    const longSlopeGravity = -Math.sin(p.pitch) * LUNAR_G * 2.35;
+    const latSlopeGravity = -Math.sin(p.roll) * LUNAR_G * 1.85;
 
     if (brake) {
       p.forwardSpeed = THREE.MathUtils.damp(p.forwardSpeed, 0, 9.5, dt);
     } else if (forward) {
-      p.forwardSpeed = Math.min(modeMaxSpeed, p.forwardSpeed + (accel + slopeGravity) * dt);
+      p.forwardSpeed = Math.min(modeMaxSpeed, p.forwardSpeed + (accel + longSlopeGravity) * dt);
     } else if (reverse) {
-      p.forwardSpeed = Math.max(-modeMaxSpeed * 0.65, p.forwardSpeed - (accel * 0.9 - slopeGravity) * dt);
+      p.forwardSpeed = Math.max(-modeMaxSpeed * 0.65, p.forwardSpeed - (accel * 0.9 - longSlopeGravity) * dt);
     } else {
       p.forwardSpeed = THREE.MathUtils.damp(
-        p.forwardSpeed + (Math.abs(slopeGravity) > 0.22 ? slopeGravity * dt : 0),
+        p.forwardSpeed + (Math.abs(longSlopeGravity) > 0.16 ? longSlopeGravity * dt : 0),
         0,
         rollingResistance,
         dt
       );
     }
 
-    // Speed-sensitive Ackermann steering
+    // Speed-sensitive 4-wheel Ackermann steering
     const speedFactor = 1.0 / (1.0 + Math.abs(p.forwardSpeed) * 0.12);
     const maxSteer = 0.48 * speedFactor + 0.12;
-    const steerRate = 2.8;
+    const steerRate = 2.9;
     if (left) {
       p.steering = Math.min(maxSteer, p.steering + steerRate * dt);
     } else if (right) {
@@ -915,29 +1346,34 @@ export default function LunarRoverExperience() {
       p.steering = THREE.MathUtils.damp(p.steering, 0, 5.5, dt);
     }
 
-    // 4-wheel steering angular velocity (tighter turning radius due to counter-steering rear wheels)
     const wheelbase = 2.3;
-    const turnGain = p.airborne ? 0.25 : 1.35;
+    const turnGain = p.airborne ? 0.22 : 1.38;
     const headingDelta = (p.forwardSpeed / wheelbase) * Math.sin(p.steering) * turnGain * dt;
     p.heading += headingDelta;
 
     const sinH = Math.sin(p.heading);
     const cosH = Math.cos(p.heading);
 
-    // Lateral Regolith Traction & Drift Physics
-    const targetVx = sinH * p.forwardSpeed;
-    const targetVz = cosH * p.forwardSpeed;
-    const traction = p.airborne ? 0.5 : brake ? 3.5 : 5.2;
+    // Lateral Regolith Traction + Crater Wall Side-Slip Physics
+    const rightX = -cosH;
+    const rightZ = sinH;
+    const targetVx = sinH * p.forwardSpeed + rightX * latSlopeGravity * 0.55;
+    const targetVz = cosH * p.forwardSpeed + rightZ * latSlopeGravity * 0.55;
+    const traction = p.airborne ? 0.45 : brake ? 3.6 : 5.0;
     p.vx = THREE.MathUtils.damp(p.vx, targetVx, traction, dt);
     p.vz = THREE.MathUtils.damp(p.vz, targetVz, traction, dt);
 
     p.x += p.vx * dt;
     p.z += p.vz * dt;
 
-    // Boulder & Tracy's Rock Collision Detection
+    // Rigid-Body Collision Detection for Large Non-Driveable Boulders & Tracy's Rock
     const colliders = [
-      { x: -9, z: -14, r: 4.8 }, // Tracy's Rock
-      ...SURFACE_BOULDERS.map((b) => ({ x: b.pos[0], z: b.pos[2], r: b.scale * 0.95 + 0.85 })),
+      { x: -10, z: -14, r: 5.1 }, // Tracy's Rock complex
+      ...SURFACE_BOULDERS.filter((b) => !b.driveable).map((b) => ({
+        x: b.x,
+        z: b.z,
+        r: b.radius * 0.95 + 0.85,
+      })),
     ];
     let impactG = 0;
     for (const c of colliders) {
@@ -952,10 +1388,13 @@ export default function LunarRoverExperience() {
         p.z += nz * overlap;
         const vn = p.vx * nx + p.vz * nz;
         if (vn < 0) {
-          p.vx -= 1.45 * vn * nx;
-          p.vz -= 1.45 * vn * nz;
+          p.vx -= 1.48 * vn * nx;
+          p.vz -= 1.48 * vn * nz;
           p.forwardSpeed *= -0.35;
-          impactG = Math.min(2.8, Math.abs(vn) * 0.65);
+          // Glancing angular deflection torque
+          const cross = nx * sinH - nz * cosH;
+          p.heading += cross * 0.18;
+          impactG = Math.min(3.2, Math.abs(vn) * 0.72);
         }
       }
     }
@@ -964,16 +1403,15 @@ export default function LunarRoverExperience() {
     p.distanceTraversed += groundSpeedMs * dt;
     p.wheelAngle += (p.forwardSpeed / 0.4) * dt;
 
-    // Compute Slip Angle (degrees between heading vector and actual velocity vector)
     if (groundSpeedMs > 0.45) {
       const velAngle = Math.atan2(p.vx, p.vz);
-      let diff = ((velAngle - p.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      const diff = ((velAngle - p.heading + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
       p.slipDeg = Math.min(45, Math.abs((diff * 180) / Math.PI));
     } else {
       p.slipDeg = THREE.MathUtils.damp(p.slipDeg, 0, 6, dt);
     }
 
-    // 4-Wheel Ground Heights & Independent Spring-Damper Suspension
+    // 4-Wheel Ground Heights (including craters, micro-craters, AND driveable rocks!)
     const halfTrack = 0.88;
     const halfBase = 1.15;
 
@@ -989,41 +1427,37 @@ export default function LunarRoverExperience() {
     const rr_x = p.x - sinH * halfBase + cosH * halfTrack;
     const rr_z = p.z - cosH * halfBase - sinH * halfTrack;
 
-    const y_fl = getLunarHeight(fl_x, fl_z);
-    const y_fr = getLunarHeight(fr_x, fr_z);
-    const y_rl = getLunarHeight(rl_x, rl_z);
-    const y_rr = getLunarHeight(rr_x, rr_z);
+    const y_fl = getWheelGroundHeight(fl_x, fl_z);
+    const y_fr = getWheelGroundHeight(fr_x, fr_z);
+    const y_rl = getWheelGroundHeight(rl_x, rl_z);
+    const y_rr = getWheelGroundHeight(rr_x, rr_z);
 
     const avgGroundY = (y_fl + y_fr + y_rl + y_rr) / 4;
     const restChassisHeight = 0.42;
     const targetChassisY = avgGroundY + restChassisHeight;
 
-    // Vertical 1/6-G Lunar Gravity & Suspension Spring-Damper Physics
-    const LUNAR_G = 1.622; // m/s²
     const prevVy = p.vy;
 
-    if (p.y > targetChassisY + 0.09) {
-      // Rover is airborne under 1/6th lunar gravity!
+    if (p.y > targetChassisY + 0.085) {
+      // Ballistic 1/6-G Lunar Free-Fall
       p.airborne = true;
-      p.vy -= LUNAR_G * 2.1 * dt;
+      p.vy -= LUNAR_G * 2.15 * dt;
       p.y += p.vy * dt;
       if (p.y <= targetChassisY) {
         p.y = targetChassisY;
         p.airborne = false;
-        // Compress springs on touchdown
-        p.vy = -p.vy * 0.22;
+        p.vy = -p.vy * 0.24;
       }
     } else {
       p.airborne = false;
-      // Spring-damper tracking terrain height changes (allows launching off sharp crests!)
       const terrainVy = (targetChassisY - p.y) / dt;
-      if (terrainVy < -2.2 && groundSpeedMs > 3.2) {
-        // Launch airborne off crest!
+      if (terrainVy < -2.1 && groundSpeedMs > 3.1) {
+        // Launch airborne off raised crater rim!
         p.airborne = true;
-        p.vy = Math.max(0.6, p.vy);
+        p.vy = Math.max(0.75, p.vy);
       } else {
-        const springK = 38.0;
-        const damperC = 9.5;
+        const springK = 40.0;
+        const damperC = 9.2;
         const disp = targetChassisY - p.y;
         const springAccel = disp * springK - p.vy * damperC;
         p.vy += springAccel * dt;
@@ -1031,21 +1465,19 @@ export default function LunarRoverExperience() {
       }
     }
 
-    // Calculate G-Force (0.16G nominal lunar gravity + vertical acceleration + impact)
     const vertAccelG = Math.abs((p.vy - prevVy) / dt) / 9.81;
-    p.gForce = THREE.MathUtils.lerp(p.gForce, Math.min(3.5, 0.16 + vertAccelG * 0.45 + impactG), 0.25);
+    p.gForce = THREE.MathUtils.lerp(p.gForce, Math.min(3.5, 0.16 + vertAccelG * 0.48 + impactG), 0.25);
 
-    // Pitch & Roll Spring-Damper Dynamics (including acceleration squat & brake dive!)
-    const accelPitchOffset = (forward ? -0.035 : brake && groundSpeedMs > 0.5 ? 0.055 : 0);
-    const steerRollOffset = p.steering * groundSpeedMs * 0.018;
+    const accelPitchOffset = forward ? -0.038 : brake && groundSpeedMs > 0.5 ? 0.058 : 0;
+    const steerRollOffset = p.steering * groundSpeedMs * 0.019;
 
     const targetPitch =
       Math.atan2((y_fl + y_fr) / 2 - (y_rl + y_rr) / 2, wheelbase) + accelPitchOffset;
     const targetRoll =
       Math.atan2((y_fr + y_rr) / 2 - (y_fl + y_rl) / 2, halfTrack * 2) + steerRollOffset;
 
-    const pitchSpring = (targetPitch - p.pitch) * 42 - p.pitchVel * 8.5;
-    const rollSpring = (targetRoll - p.roll) * 42 - p.rollVel * 8.5;
+    const pitchSpring = (targetPitch - p.pitch) * 44 - p.pitchVel * 8.2;
+    const rollSpring = (targetRoll - p.roll) * 44 - p.rollVel * 8.2;
     p.pitchVel += pitchSpring * dt;
     p.rollVel += rollSpring * dt;
     p.pitch += p.pitchVel * dt;
@@ -1056,19 +1488,25 @@ export default function LunarRoverExperience() {
       roverRef.current.rotation.set(-p.pitch, p.heading, p.roll);
     }
 
-    // Individual 4-wheel vertical travel offsets & compression %
-    const computeWheelOffset = (wy: number, wxLocal: number, wzLocal: number) => {
-      if (p.airborne) return -0.11; // wheels droop in mid-air
-      const chassisWheelY = p.y + wzLocal * Math.sin(p.pitch) + wxLocal * Math.sin(p.roll);
-      return THREE.MathUtils.clamp(wy + 0.42 - chassisWheelY, -0.14, 0.16);
-    };
+    // Individual 4-wheel spring-damper articulation
+    const wheelTargets = [
+      { wy: y_fl, lx: -halfTrack, lz: halfBase },
+      { wy: y_fr, lx: halfTrack, lz: halfBase },
+      { wy: y_rl, lx: -halfTrack, lz: -halfBase },
+      { wy: y_rr, lx: halfTrack, lz: -halfBase },
+    ];
+    for (let i = 0; i < 4; i++) {
+      const wt = wheelTargets[i];
+      let targetOff = -0.12;
+      if (!p.airborne) {
+        const chassisWheelY = p.y + wt.lz * Math.sin(p.pitch) + wt.lx * Math.sin(p.roll);
+        targetOff = THREE.MathUtils.clamp(wt.wy + 0.42 - chassisWheelY, -0.15, 0.18);
+      }
+      const wSpring = (targetOff - p.wheelComp[i]) * 65 - p.wheelVel[i] * 11;
+      p.wheelVel[i] += wSpring * dt;
+      p.wheelComp[i] = THREE.MathUtils.clamp(p.wheelComp[i] + p.wheelVel[i] * dt, -0.15, 0.18);
+    }
 
-    const offFL = computeWheelOffset(y_fl, -halfTrack, halfBase);
-    const offFR = computeWheelOffset(y_fr, halfTrack, halfBase);
-    const offRL = computeWheelOffset(y_rl, -halfTrack, -halfBase);
-    const offRR = computeWheelOffset(y_rr, halfTrack, -halfBase);
-
-    // Add Tire Prints when wheels are in contact with regolith
     const currentPos = new THREE.Vector2(p.x, p.z);
     if (!p.airborne && currentPos.distanceTo(lastTrackPos.current) > 0.34) {
       lastTrackPos.current.copy(currentPos);
@@ -1078,7 +1516,7 @@ export default function LunarRoverExperience() {
         { x: rl_x, y: y_rl, z: rl_z, heading: p.heading - p.steering * 0.55 },
         { x: rr_x, y: y_rr, z: rr_z, heading: p.heading - p.steering * 0.55 },
       ];
-      setTracks((prev) => (prev.length > 640 ? [...prev.slice(4), ...newPrints] : [...prev, ...newPrints]));
+      setTracks((prev) => (prev.length > 680 ? [...prev.slice(4), ...newPrints] : [...prev, ...newPrints]));
     }
 
     // 360° Mouse Cursor Orbit Camera System
@@ -1109,7 +1547,6 @@ export default function LunarRoverExperience() {
       threeCamera.position.lerp(camPos, 0.1);
       threeCamera.lookAt(p.x, p.y + 0.5, p.z);
     } else {
-      // Chase 360° Orbit Camera
       const dist = orbit.distance;
       const horizDist = dist * Math.cos(orbit.pitch);
       const vertDist = Math.max(0.75, dist * Math.sin(orbit.pitch) + 1.2);
@@ -1122,11 +1559,12 @@ export default function LunarRoverExperience() {
       threeCamera.lookAt(p.x, p.y + 0.72, p.z);
     }
 
-    // Update HUD telemetry at ~12 Hz
+    // Sync HUD telemetry at ~12 Hz
     if (Math.floor(state.clock.elapsedTime * 12) !== Math.floor((state.clock.elapsedTime - dt) * 12)) {
-      setWheelOffsets([offFL, offFR, offRL, offRR]);
+      const [c0, c1, c2, c3] = p.wheelComp;
+      setWheelOffsets([c0, c1, c2, c3]);
       const toLoadPct = (off: number) =>
-        p.airborne ? 0 : Math.round(THREE.MathUtils.clamp(((off + 0.14) / 0.3) * 100, 5, 100));
+        p.airborne ? 0 : Math.round(THREE.MathUtils.clamp(((off + 0.15) / 0.33) * 100, 5, 100));
       const speedKmh = Math.round(groundSpeedMs * 3.6 * 10) / 10;
       const motorKw = Math.round((Math.abs(p.forwardSpeed) * 0.22 + (forward || reverse ? 0.35 : 0.04)) * 100) / 100;
       p.batteryPct = Math.max(12, p.batteryPct - motorKw * 0.0004);
@@ -1142,7 +1580,7 @@ export default function LunarRoverExperience() {
         airborne: p.airborne,
         gForce: Math.round(p.gForce * 100) / 100,
         slipDeg: Math.round(p.slipDeg),
-        wheelLoads: [toLoadPct(offFL), toLoadPct(offFR), toLoadPct(offRL), toLoadPct(offRR)],
+        wheelLoads: [toLoadPct(c0), toLoadPct(c1), toLoadPct(c2), toLoadPct(c3)],
         motorKw,
         batteryPct: Math.round(p.batteryPct * 10) / 10,
       });
@@ -1153,61 +1591,85 @@ export default function LunarRoverExperience() {
     <>
       <color attach="background" args={["#000000"]} />
 
+      {/* Low-Angle Lunar Sun Casting Sharp Crater Rim & Boulder Shadows */}
       <directionalLight
-        position={[90, 26, 55]}
-        intensity={4.6}
-        color="#ffffff"
+        position={[110, 24, 65]}
+        intensity={4.8}
+        color="#fffcf5"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-camera-left={-45}
-        shadow-camera-right={45}
-        shadow-camera-top={45}
-        shadow-camera-bottom={-45}
-        shadow-bias={-0.0005}
+        shadow-camera-left={-65}
+        shadow-camera-right={65}
+        shadow-camera-top={65}
+        shadow-camera-bottom={-65}
+        shadow-bias={-0.0004}
       />
-      <ambientLight intensity={0.07} color="#cbd5e1" />
+      <ambientLight intensity={0.08} color="#cbd5e1" />
 
-      {/* Taurus-Littrow Lunar Regolith Terrain */}
+      {/* High-Resolution Multi-Crater & Vertex-Shaded Lunar Terrain */}
       <mesh geometry={terrainGeo} receiveShadow>
         <meshStandardMaterial
           map={regolithTex}
           bumpMap={regolithTex}
-          bumpScale={0.09}
-          color="#9a9ea6"
+          bumpScale={0.11}
+          vertexColors
           roughness={0.96}
           metalness={0.03}
         />
       </mesh>
 
-      {/* Distant Sculptured Hills & South Massif */}
-      <mesh position={[68, -2, -95]} receiveShadow>
-        <coneGeometry args={[62, 28, 32]} />
+      {/* Distant Lunar Massifs on Horizon */}
+      <mesh position={[95, -2, -125]} receiveShadow>
+        <coneGeometry args={[78, 34, 32]} />
         <meshStandardMaterial map={regolithTex} color="#8b8f97" roughness={0.98} />
       </mesh>
-      <mesh position={[-75, -2, -88]} receiveShadow>
-        <coneGeometry args={[58, 24, 32]} />
+      <mesh position={[-98, -2, -118]} receiveShadow>
+        <coneGeometry args={[72, 29, 32]} />
         <meshStandardMaterial map={regolithTex} color="#7c8088" roughness={0.98} />
       </mesh>
-      <mesh position={[0, -4, -125]} receiveShadow>
-        <coneGeometry args={[75, 22, 32]} />
+      <mesh position={[0, -4, -155]} receiveShadow>
+        <coneGeometry args={[92, 28, 32]} />
         <meshStandardMaterial map={regolithTex} color="#70747c" roughness={0.98} />
       </mesh>
 
-      {/* Station 6 Split Boulder (Tracy's Rock) & Astronaut */}
-      <TracysRock position={[-9, getLunarHeight(-9, -14) - 0.3, -14]} />
+      {/* Subtle Lunar Survey Rim Beacons on each of the 8 Real Craters */}
+      {SURFACE_CRATERS.map((c) => {
+        const rimX = c.x;
+        const rimZ = c.z + c.radius;
+        const rimY = getLunarHeight(rimX, rimZ);
+        return (
+          <group key={c.id} position={[rimX, rimY, rimZ]}>
+            <mesh position={[0, 0.75, 0]}>
+              <cylinderGeometry args={[0.025, 0.025, 1.5, 8]} />
+              <meshStandardMaterial color="#cbd5e1" metalness={0.85} />
+            </mesh>
+            <mesh position={[0, 1.55, 0]}>
+              <sphereGeometry args={[0.09, 12, 12]} />
+              <meshBasicMaterial color={c.psr ? "#00f0ff" : "#fbbf24"} />
+            </mesh>
+          </group>
+        );
+      })}
 
-      {/* Collidable Lunar Boulders */}
+      {/* Station 6 Split Boulder (Tracy's Rock) & Astronaut */}
+      <TracysRock
+        position={[-10, getLunarHeight(-10, -14) - 0.25, -14]}
+        rockMat={rockMat}
+        rockGeos={rockGeos}
+      />
+
+      {/* 56 Realistic Fractured Lunar Boulders & Driveable Ejecta Cobbles */}
       {SURFACE_BOULDERS.map((b, i) => (
         <mesh
           key={i}
-          position={[b.pos[0], getLunarHeight(b.pos[0], b.pos[2]) + b.scale * 0.45, b.pos[2]]}
-          rotation={[i * 0.45, i * 1.1, i * 0.35]}
+          geometry={rockGeos[b.variant % rockGeos.length]}
+          material={rockMat}
+          position={[b.x, getLunarHeight(b.x, b.z) + b.scale[1] * 0.35, b.z]}
+          scale={b.scale}
+          rotation={b.rot}
           castShadow
           receiveShadow
-        >
-          <dodecahedronGeometry args={[b.scale, 1]} />
-          <meshStandardMaterial color="#555a62" roughness={0.95} />
-        </mesh>
+        />
       ))}
 
       {/* Dynamic 4-Wheel Tire Prints */}
@@ -1232,7 +1694,7 @@ export default function LunarRoverExperience() {
 }
 
 /* =========================================================================
-   7. NEXT-GEN SCI-FI ROVER COCKPIT & PHYSICS TELEMETRY HUD
+   7. NEXT-GEN SCI-FI ROVER COCKPIT, CRATER RADAR & PHYSICS TELEMETRY HUD
    ========================================================================= */
 
 const COMPASS_TICKS = [
@@ -1263,6 +1725,44 @@ export function RoverHUD() {
     window.dispatchEvent(new KeyboardEvent(isDown ? "keydown" : "keyup", { code, bubbles: true }));
   };
 
+  const teleportToCrater = (targetId: string) => {
+    if (targetId === "station6") {
+      window.dispatchEvent(
+        new CustomEvent("rover-teleport", { detail: { x: 0, z: 14, heading: 0 } })
+      );
+      return;
+    }
+    const c = SURFACE_CRATERS.find((x) => x.id === targetId);
+    if (!c) return;
+    if (c.siteId) {
+      const s = sim.sites.find((site) => site.id === c.siteId);
+      if (s) sim.set({ siteId: s.id, lat: s.lat, lon: s.lon });
+    }
+    // Deploy rover on the rim overlooking the crater bowl
+    const spawnX = c.x;
+    const spawnZ = c.z + c.radius + 3.5;
+    window.dispatchEvent(
+      new CustomEvent("rover-teleport", {
+        detail: { x: spawnX, z: spawnZ, heading: Math.PI },
+      })
+    );
+  };
+
+  // Find nearest crater to rover
+  const nearestCrater = useMemo(() => {
+    let best = SURFACE_CRATERS[0];
+    let bestDist = Infinity;
+    for (const c of SURFACE_CRATERS) {
+      const d = Math.hypot(rover.x - c.x, rover.z - c.z);
+      if (d < bestDist) {
+        bestDist = d;
+        best = c;
+      }
+    }
+    const insideBowl = bestDist < best.radius;
+    return { crater: best, dist: Math.round(bestDist), insideBowl };
+  }, [rover.x, rover.z]);
+
   const maxSpeedRef = rover.driveMode === "overdrive" ? 26 : rover.driveMode === "eco" ? 10 : 15;
   const speedRatio = Math.min(1, rover.speedKmh / 26);
   const wheelLabels = ["FL", "FR", "RL", "RR"];
@@ -1284,7 +1784,7 @@ export function RoverHUD() {
         </div>
       )}
 
-      {/* TOP LEFT: Navigation & Camera Mode Strip */}
+      {/* TOP LEFT: Navigation, Crater Sector Teleport Menu & Camera Strip */}
       <div className="rover-top-nav rover-hud-interactive">
         <button
           className="btn-header active"
@@ -1299,6 +1799,27 @@ export function RoverHUD() {
         >
           ◀ ORBIT COMMAND
         </button>
+
+        <select
+          className="aero-select"
+          style={{ width: "215px", height: "28px", padding: "3px 8px", fontSize: "10.5px" }}
+          defaultValue=""
+          onChange={(e) => {
+            if (e.target.value) teleportToCrater(e.target.value);
+          }}
+          title="Deploy Rover Directly to Any Real Lunar Crater Rim"
+        >
+          <option value="" disabled>
+            JUMP TO SURFACE CRATER ▾
+          </option>
+          <option value="station6">Station 6 · Tracy&apos;s Rock (Spawn)</option>
+          {SURFACE_CRATERS.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} (R={c.radius}m, D={c.depth}m)
+            </option>
+          ))}
+        </select>
+
         <button
           className="btn-header"
           onClick={() => {
@@ -1316,12 +1837,6 @@ export function RoverHUD() {
           HALOGEN: {rover.headlights ? "ON" : "OFF"} [H]
         </button>
         <button
-          className="btn-header"
-          onClick={() => setRover({ showReseau: !rover.showReseau })}
-        >
-          RETICLE: {rover.showReseau ? "ON" : "OFF"}
-        </button>
-        <button
           className={`btn-header ${sim.fullscreen ? "active" : ""}`}
           onClick={() => sim.toggleFullscreen()}
         >
@@ -1329,11 +1844,11 @@ export function RoverHUD() {
         </button>
       </div>
 
-      {/* TOP CENTER: 360° Holographic Compass Tape */}
+      {/* TOP CENTER: 360° Holographic Compass Tape & Nearest Crater Readout */}
       <div className="rover-compass-hud">
         <div className="compass-tape-window">
           {COMPASS_TICKS.map((t) => {
-            let diff = ((t.deg - rover.heading + 540) % 360) - 180;
+            const diff = ((t.deg - rover.heading + 540) % 360) - 180;
             if (Math.abs(diff) > 95) return null;
             const leftPct = 50 + (diff / 90) * 48;
             const isCardinal = ["N", "E", "S", "W"].includes(t.lbl);
@@ -1353,12 +1868,85 @@ export function RoverHUD() {
         <div className="compass-readout-box">
           <span>HDG {String(rover.heading).padStart(3, "0")}°</span>
           <span className="sep">·</span>
-          <span>POS ({rover.x.toFixed(0)}m, {rover.z.toFixed(0)}m)</span>
+          <span style={{ color: nearestCrater.insideBowl ? "var(--amber)" : "var(--cyan)" }}>
+            {nearestCrater.insideBowl
+              ? `IN CRATER: ${nearestCrater.crater.name.toUpperCase()}`
+              : `${nearestCrater.crater.name}: ${nearestCrater.dist}M`}
+          </span>
           <span className="sep">·</span>
           <span className={rover.airborne ? "airborne-alert" : "surface-ok"}>
             {rover.airborne ? "▲ 1/6G AIRBORNE" : "● SURFACE LOCK"}
           </span>
         </div>
+      </div>
+
+      {/* TOP RIGHT: Live Surface Crater LIDAR / Radar Minimap */}
+      <div
+        className="rover-hud-interactive"
+        style={{
+          position: "absolute",
+          top: "14px",
+          right: "16px",
+          width: "148px",
+          background: "linear-gradient(145deg, rgba(6, 13, 28, 0.92), rgba(3, 8, 18, 0.94))",
+          border: "1px solid rgba(0, 240, 255, 0.3)",
+          borderRadius: "8px",
+          padding: "8px",
+          backdropFilter: "blur(12px)",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.6)",
+          zIndex: 28,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontFamily: "var(--font-mono)",
+            fontSize: "8.5px",
+            color: "var(--cyan)",
+            marginBottom: "4px",
+            letterSpacing: "0.08em",
+          }}
+        >
+          <span>CRATER LIDAR</span>
+          <span>120M SCAN</span>
+        </div>
+        <svg
+          viewBox="-70 -70 140 140"
+          style={{
+            width: "100%",
+            height: "120px",
+            background: "radial-gradient(circle, rgba(0,240,255,0.08) 0%, rgba(2,6,14,0.9) 100%)",
+            borderRadius: "6px",
+            border: "1px solid rgba(0,240,255,0.18)",
+          }}
+        >
+          <circle cx="0" cy="0" r="32" fill="none" stroke="rgba(0,240,255,0.12)" strokeDasharray="2 2" />
+          <circle cx="0" cy="0" r="58" fill="none" stroke="rgba(0,240,255,0.12)" strokeDasharray="2 2" />
+          {/* Render all 8 real craters on the radar minimap (click to teleport!) */}
+          {SURFACE_CRATERS.map((c) => (
+            <g
+              key={c.id}
+              style={{ cursor: "pointer" }}
+              onClick={() => teleportToCrater(c.id)}
+            >
+              <circle
+                cx={c.x}
+                cy={c.z}
+                r={c.radius}
+                fill={c.psr ? "rgba(0, 240, 255, 0.14)" : "rgba(251, 191, 36, 0.14)"}
+                stroke={c.psr ? "#00f0ff" : "#fbbf24"}
+                strokeWidth="1.2"
+              />
+            </g>
+          ))}
+          {/* Tracy's Rock Marker */}
+          <rect x={-12} y={-16} width="4" height="4" fill="#94a3b8" />
+          {/* Rover Position & Heading Triangle */}
+          <g transform={`translate(${rover.x}, ${rover.z}) rotate(${180 - rover.heading})`}>
+            <polygon points="0,-5 4,4 0,2 -4,4" fill="#34d399" stroke="#fff" strokeWidth="0.7" />
+          </g>
+        </svg>
       </div>
 
       {/* BOTTOM LEFT: 4-Wheel Suspension & Inertial Physics Pod */}
@@ -1369,7 +1957,6 @@ export function RoverHUD() {
         </div>
 
         <div className="physics-pod-grid">
-          {/* 4-Wheel Suspension Load Bars */}
           <div className="wheel-susp-schematic">
             <div className="wheel-bars-grid">
               {(rover.wheelLoads ?? [45, 45, 45, 45]).map((load, i) => {
@@ -1399,7 +1986,6 @@ export function RoverHUD() {
             </div>
           </div>
 
-          {/* Pitch / Roll / G-Force / Slip */}
           <div className="inertial-metrics-grid">
             <div className="inertial-cell">
               <span className="lbl">G-LOAD</span>
@@ -1420,7 +2006,6 @@ export function RoverHUD() {
           </div>
         </div>
 
-        {/* Keybinds Legend Strip */}
         <div className="rover-keybind-strip">
           <span><b>WASD</b> DRIVE</span>
           <span><b>SHIFT</b> OVERDRIVE</span>
@@ -1459,7 +2044,6 @@ export function RoverHUD() {
           </div>
         </div>
 
-        {/* Drive Gear Selector + 1/6G Hop Button */}
         <div className="drive-mode-bar">
           {(["eco", "nominal", "overdrive"] as const).map((m, idx) => (
             <button

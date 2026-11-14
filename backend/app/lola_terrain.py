@@ -271,6 +271,40 @@ NASA_LANDING_SITES = [
         "psr_distance_km": 999.0,
         "hazard_rating": "MINIMAL",
         "description": "First crewed landing site on the Moon (July 20, 1969). Flat basaltic mare plain with low boulder distribution."
+    },
+    {
+        "id": "tycho-central-peak",
+        "name": "Tycho Crater Central Peak",
+        "region": "Southern Lunar Highlands",
+        "category": "LOLA Major Impact Crater",
+        "official_landing_site": True,
+        "lat": -43.31,
+        "lon": 348.64,
+        "elevation_m": -2100.0,
+        "slope_deg": 5.8,
+        "roughness": 0.21,
+        "sunlit_fraction": 0.54,
+        "earth_vis_fraction": 0.96,
+        "psr_distance_km": 180.0,
+        "hazard_rating": "MODERATE",
+        "description": "Prominent 85 km rayed Copernican-aged impact crater featuring a 2 km central peak and terraced boulder-strewn walls."
+    },
+    {
+        "id": "copernicus-crater-floor",
+        "name": "Copernicus Crater Terraced Rim",
+        "region": "Oceanus Procellarum East",
+        "category": "LOLA Major Impact Crater",
+        "official_landing_site": True,
+        "lat": 9.62,
+        "lon": 339.92,
+        "elevation_m": -2850.0,
+        "slope_deg": 4.2,
+        "roughness": 0.16,
+        "sunlit_fraction": 0.52,
+        "earth_vis_fraction": 0.99,
+        "psr_distance_km": 999.0,
+        "hazard_rating": "LOW",
+        "description": "Iconic 93 km terraced impact basin with an exposed olivine-bearing central peak complex and bright ejecta blanket."
     }
 ]
 
@@ -285,7 +319,8 @@ def interpolate_lola_elevation(lat: float, lon: float) -> Dict[str, Any]:
         dlon = math.radians(lon - site["lon"])
         # Great-circle angular distance
         a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat)) * math.cos(math.radians(site["lat"])) * math.sin(dlon / 2) ** 2
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        a = max(0.0, min(1.0, a))
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1.0 - a)))
         dist_km = c * (MOON_RADIUS_M / 1000.0)
         weights.append((dist_km, site))
     

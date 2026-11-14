@@ -243,7 +243,7 @@ export const useSim = create<State>((set, get) => ({
     graticule: false,
     terminator: true,
     markers: true,
-    craters: false,
+    craters: true,
     indicators: true,
     axis: false,
   },
