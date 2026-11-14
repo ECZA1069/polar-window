@@ -525,7 +525,7 @@ function TireTracksMesh({ tracks }: { tracks: TrackPoint[] }) {
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[quadGeo, trackMat, 600]} />
+    <instancedMesh ref={meshRef} args={[quadGeo, trackMat, 600]} frustumCulled={false} />
   );
 }
 
@@ -588,7 +588,7 @@ function LunarDustEmitter({ active, position, velocity }: { active: boolean; pos
   });
 
   return (
-    <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
+    <instancedMesh ref={meshRef} args={[undefined, undefined, count]} frustumCulled={false}>
       <sphereGeometry args={[1, 6, 6]} />
       <meshBasicMaterial color="#9ca3af" transparent opacity={0.5} />
     </instancedMesh>
@@ -642,6 +642,9 @@ export default function LunarRoverExperience() {
   // Mouse & Pointer listeners for 360° Cursor Look Around
   useEffect(() => {
     const onPointerDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || !target.closest(".center-stage")) return;
+      if (target.closest("button, input, select, .rover-dashboard-hud, .rover-dpad-container, .rover-top-nav")) return;
       mouseOrbit.current.isDragging = true;
       mouseOrbit.current.prevX = e.clientX;
       mouseOrbit.current.prevY = e.clientY;
@@ -669,6 +672,8 @@ export default function LunarRoverExperience() {
     };
 
     const onWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target || !target.closest(".center-stage")) return;
       mouseOrbit.current.distance = THREE.MathUtils.clamp(
         mouseOrbit.current.distance + e.deltaY * 0.005,
         3.0,
@@ -1099,6 +1104,7 @@ export function RoverHUD() {
             className="dpad-btn"
             onMouseDown={() => triggerKey("KeyW", true)}
             onMouseUp={() => triggerKey("KeyW", false)}
+            onMouseLeave={() => triggerKey("KeyW", false)}
             onTouchStart={() => triggerKey("KeyW", true)}
             onTouchEnd={() => triggerKey("KeyW", false)}
             title="Drive Forward (W)"
@@ -1111,6 +1117,7 @@ export function RoverHUD() {
             className="dpad-btn"
             onMouseDown={() => triggerKey("KeyA", true)}
             onMouseUp={() => triggerKey("KeyA", false)}
+            onMouseLeave={() => triggerKey("KeyA", false)}
             onTouchStart={() => triggerKey("KeyA", true)}
             onTouchEnd={() => triggerKey("KeyA", false)}
             title="Steer Left (A)"
@@ -1121,6 +1128,7 @@ export function RoverHUD() {
             className="dpad-btn brake-btn"
             onMouseDown={() => triggerKey("Space", true)}
             onMouseUp={() => triggerKey("Space", false)}
+            onMouseLeave={() => triggerKey("Space", false)}
             onTouchStart={() => triggerKey("Space", true)}
             onTouchEnd={() => triggerKey("Space", false)}
             title="Brake (Space)"
@@ -1131,6 +1139,7 @@ export function RoverHUD() {
             className="dpad-btn"
             onMouseDown={() => triggerKey("KeyD", true)}
             onMouseUp={() => triggerKey("KeyD", false)}
+            onMouseLeave={() => triggerKey("KeyD", false)}
             onTouchStart={() => triggerKey("KeyD", true)}
             onTouchEnd={() => triggerKey("KeyD", false)}
             title="Steer Right (D)"
@@ -1143,6 +1152,7 @@ export function RoverHUD() {
             className="dpad-btn"
             onMouseDown={() => triggerKey("KeyS", true)}
             onMouseUp={() => triggerKey("KeyS", false)}
+            onMouseLeave={() => triggerKey("KeyS", false)}
             onTouchStart={() => triggerKey("KeyS", true)}
             onTouchEnd={() => triggerKey("KeyS", false)}
             title="Reverse (S)"

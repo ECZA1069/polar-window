@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Stars, Line, Html } from "@react-three/drei";
+import { OrbitControls, Stars, Line } from "@react-three/drei";
 import * as THREE from "three";
 import { useSim } from "./store";
 import { latLonToMe, meToThree } from "./coords";
@@ -128,63 +128,33 @@ function Sites() {
             onPointerOver={() => (document.body.style.cursor = "pointer")}
             onPointerOut={() => (document.body.style.cursor = "")}
           >
-            <sphereGeometry args={[isSel ? 0.028 : 0.016, 16, 16]} />
+            <sphereGeometry args={[isSel ? 0.026 : 0.014, 16, 16]} />
             <meshBasicMaterial color={isSel ? "#00f0ff" : "#94a3b8"} />
           </mesh>
         );
       })}
       {!siteId && (
         <mesh position={P(lat, lon, 1.006)}>
-          <sphereGeometry args={[0.024, 16, 16]} />
+          <sphereGeometry args={[0.022, 16, 16]} />
           <meshBasicMaterial color="#fbbf24" />
         </mesh>
       )}
-
-      {/* Active Rover Surface Expedition Marker on the Lunar Sphere */}
-      <group position={P(lat, lon, 1.01)}>
-        <mesh>
-          <boxGeometry args={[0.022, 0.012, 0.032]} />
-          <meshStandardMaterial color="#fbbf24" metalness={0.9} />
-        </mesh>
-        <mesh position={[0, 0.012, 0]}>
-          <cylinderGeometry args={[0.003, 0.003, 0.018, 6]} />
-          <meshBasicMaterial color="#00f0ff" />
-        </mesh>
-        <Html distanceFactor={8} center position={[0, 0.035, 0]}>
-          <div
-            style={{
-              pointerEvents: "none",
-              color: "#fbbf24",
-              fontSize: "9px",
-              fontWeight: 700,
-              fontFamily: "var(--font-mono)",
-              background: "rgba(3,6,13,0.85)",
-              border: "1px solid rgba(251,191,36,0.4)",
-              padding: "1px 5px",
-              borderRadius: "3px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            ● LRV EXPEDITION
-          </div>
-        </Html>
-      </group>
     </>
   );
 }
 
 const LOLA_CRATER_DATA = [
-  { id: "shackleton-connecting-ridge", name: "SHACKLETON", lat: -89.44, lon: 222.5, radiusDeg: 0.8, elev: "+1,150m (RIM) / -4,200m (PSR)", psr: true },
-  { id: "malapert-mountain", name: "MALAPERT MTN", lat: -86.04, lon: 2.7, radiusDeg: 1.5, elev: "+5,050m (PEAK M5)", psr: false },
-  { id: "nobile-rim-1-viper", name: "NOBILE VIPER", lat: -85.39, lon: 37.8, radiusDeg: 2.4, elev: "+1,890m (RIM)", psr: false },
-  { id: "haworth-rim", name: "HAWORTH", lat: -87.87, lon: 354.5, radiusDeg: 1.3, elev: "+2,100m (RIM)", psr: true },
-  { id: "de-gerlache-rim", name: "DE GERLACHE", lat: -88.5, lon: 271.0, radiusDeg: 1.1, elev: "+1,850m (RIM)", psr: true },
-  { id: "amundsen-rim", name: "AMUNDSEN", lat: -84.5, lon: 82.8, radiusDeg: 3.2, elev: "+2,300m (RIM)", psr: false },
-  { id: "faustini-rim", name: "FAUSTINI", lat: -87.3, lon: 77.0, radiusDeg: 1.4, elev: "+1,650m (RIM)", psr: true },
-  { id: "cabeus-crater", name: "CABEUS (LCROSS)", lat: -84.9, lon: 324.5, radiusDeg: 3.1, elev: "+1,200m (RIM)", psr: true },
-  { id: "shoemaker-rim", name: "SHOEMAKER", lat: -88.1, lon: 45.0, radiusDeg: 1.6, elev: "+1,400m (RIM)", psr: true },
-  { id: "leibnitz-beta-plateau", name: "LEIBNITZ BETA", lat: -85.8, lon: 330.0, radiusDeg: 1.5, elev: "+3,600m (PLATEAU)", psr: false },
-  { id: "peak-near-shackleton", name: "PEAK SHACKLETON", lat: -89.68, lon: 166.0, radiusDeg: 0.7, elev: "+1,420m (PEAK)", psr: false },
+  { id: "shackleton-connecting-ridge", lat: -89.44, lon: 222.5, radiusDeg: 0.8, psr: true },
+  { id: "malapert-mountain", lat: -86.04, lon: 2.7, radiusDeg: 1.5, psr: false },
+  { id: "nobile-rim-1-viper", lat: -85.39, lon: 37.8, radiusDeg: 2.4, psr: false },
+  { id: "haworth-rim", lat: -87.87, lon: 354.5, radiusDeg: 1.3, psr: true },
+  { id: "de-gerlache-rim", lat: -88.5, lon: 271.0, radiusDeg: 1.1, psr: true },
+  { id: "amundsen-rim", lat: -84.5, lon: 82.8, radiusDeg: 3.2, psr: false },
+  { id: "faustini-rim", lat: -87.3, lon: 77.0, radiusDeg: 1.4, psr: true },
+  { id: "cabeus-crater", lat: -84.9, lon: 324.5, radiusDeg: 3.1, psr: true },
+  { id: "shoemaker-rim", lat: -88.1, lon: 45.0, radiusDeg: 1.6, psr: true },
+  { id: "leibnitz-beta-plateau", lat: -85.8, lon: 330.0, radiusDeg: 1.5, psr: false },
+  { id: "peak-near-shackleton", lat: -89.68, lon: 166.0, radiusDeg: 0.7, psr: false },
 ];
 
 function CraterRing({ lat, lon, radiusDeg, color = "#00f0ff" }: { lat: number; lon: number; radiusDeg: number; color?: string }) {
@@ -202,7 +172,13 @@ function CraterRing({ lat, lon, radiusDeg, color = "#00f0ff" }: { lat: number; l
       const x = Math.cos(angle) * Math.sin(rad);
       const y = Math.sin(angle) * Math.sin(rad);
       const z = Math.cos(rad);
-      const pt = u.clone().multiplyScalar(x).add(v.clone().multiplyScalar(y)).add(centerVec.clone().multiplyScalar(z)).normalize().multiplyScalar(R * 1.004);
+      const pt = u
+        .clone()
+        .multiplyScalar(x)
+        .add(v.clone().multiplyScalar(y))
+        .add(centerVec.clone().multiplyScalar(z))
+        .normalize()
+        .multiplyScalar(R * 1.004);
       ringPts.push(pt);
     }
     return ringPts;
@@ -212,47 +188,17 @@ function CraterRing({ lat, lon, radiusDeg, color = "#00f0ff" }: { lat: number; l
 }
 
 function LolaCraters() {
-  const select = useSim((s) => s.selectSite);
   return (
     <>
-      {LOLA_CRATER_DATA.map((c) => {
-        const pos = P(c.lat, c.lon, 1.008);
-        return (
-          <group key={c.id}>
-            <CraterRing
-              lat={c.lat}
-              lon={c.lon}
-              radiusDeg={c.radiusDeg}
-              color={c.psr ? "rgba(0, 240, 255, 0.75)" : "rgba(251, 191, 36, 0.75)"}
-            />
-            <Html position={pos} distanceFactor={7} center>
-              <div
-                style={{
-                  pointerEvents: "auto",
-                  cursor: "pointer",
-                  color: c.psr ? "var(--cyan)" : "var(--amber)",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "8.5px",
-                  fontWeight: 700,
-                  background: "rgba(3, 6, 13, 0.88)",
-                  border: `1px solid ${c.psr ? "rgba(0,240,255,0.4)" : "rgba(251,191,36,0.4)"}`,
-                  padding: "1px 5px",
-                  borderRadius: "3px",
-                  whiteSpace: "nowrap",
-                  letterSpacing: "0.06em",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.6)",
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  select(c.id);
-                }}
-              >
-                {c.name} · {c.elev}
-              </div>
-            </Html>
-          </group>
-        );
-      })}
+      {LOLA_CRATER_DATA.map((c) => (
+        <CraterRing
+          key={c.id}
+          lat={c.lat}
+          lon={c.lon}
+          radiusDeg={c.radiusDeg}
+          color={c.psr ? "rgba(0, 240, 255, 0.75)" : "rgba(251, 191, 36, 0.75)"}
+        />
+      ))}
     </>
   );
 }
@@ -293,15 +239,7 @@ function Scene({ onFail }: { onFail: (colorMissing: boolean) => void }) {
       {layers.terminator && sun && <Terminator sun={sun} />}
 
       {layers.axis && (
-        <>
-          <Line points={[[0, -1.45, 0], [0, 1.45, 0]]} color="#00f0ff" lineWidth={1.2} dashed dashSize={0.05} gapSize={0.04} />
-          <Html position={[0, -1.52, 0]} center className="hud-caption-tag" style={{ color: "var(--cyan)", background: "rgba(3,6,13,0.8)", padding: "2px 6px", borderRadius: "3px", border: "1px solid var(--line-subtle)" }}>
-            SOUTH POLE
-          </Html>
-          <Html position={[0, 1.52, 0]} center className="hud-caption-tag" style={{ color: "var(--cyan)", background: "rgba(3,6,13,0.8)", padding: "2px 6px", borderRadius: "3px", border: "1px solid var(--line-subtle)" }}>
-            NORTH POLE
-          </Html>
-        </>
+        <Line points={[[0, -1.45, 0], [0, 1.45, 0]]} color="#00f0ff" lineWidth={1.2} dashed dashSize={0.05} gapSize={0.04} />
       )}
 
       {layers.indicators && sun && (
@@ -311,9 +249,6 @@ function Scene({ onFail }: { onFail: (colorMissing: boolean) => void }) {
             <sphereGeometry args={[0.05, 16, 16]} />
             <meshBasicMaterial color="#fbbf24" />
           </mesh>
-          <Html position={sun.clone().multiplyScalar(2.68)} center className="hud-caption-tag" style={{ color: "#fbbf24", background: "rgba(3,6,13,0.85)", padding: "2px 6px", borderRadius: "3px", border: "1px solid rgba(251,191,36,0.4)" }}>
-            SUN VECTOR
-          </Html>
         </>
       )}
 
@@ -324,9 +259,6 @@ function Scene({ onFail }: { onFail: (colorMissing: boolean) => void }) {
             <sphereGeometry args={[0.04, 16, 16]} />
             <meshBasicMaterial color="#00f0ff" />
           </mesh>
-          <Html position={earth.clone().multiplyScalar(2.26)} center className="hud-caption-tag" style={{ color: "#00f0ff", background: "rgba(3,6,13,0.85)", padding: "2px 6px", borderRadius: "3px", border: "1px solid rgba(0,240,255,0.4)" }}>
-            EARTH (LOS)
-          </Html>
         </>
       )}
 

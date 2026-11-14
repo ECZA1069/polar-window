@@ -493,98 +493,142 @@ export default function App() {
       <main className={s.fullscreen ? "fullscreen-canvas-mode" : ""}>
         <MoonView />
 
-        {/* HUD Top-Left Overlay (Mission Elapsed Time) */}
-        <div className="hud-corner-top-left">
-          <span className="hud-caption-tag">MISSION ELAPSED TIME</span>
-          <span className="hud-value-large">{metDisplay}</span>
-        </div>
+        {s.view !== "rover" && (
+          <>
+            {/* HUD Top-Left Overlay (Mission Elapsed Time) */}
+            <div className="hud-corner-top-left">
+              <span className="hud-caption-tag">MISSION ELAPSED TIME</span>
+              <span className="hud-value-large">{metDisplay}</span>
+            </div>
 
-        {/* HUD Top-Right Overlay (Phase Tag) */}
-        <div className="hud-corner-top-right">
-          <span className="hud-caption-tag">— MISSION PHASE —</span>
-          <span className="hud-phase-tag">
-            {s.lat <= -80 ? "SOUTH POLE SURVEY" : s.lat >= 80 ? "NORTH POLE SURVEY" : "EQUATORIAL SURVEY"}
-          </span>
-        </div>
-
-        {/* FLOATING SITE INSPECTION HUD CARD (Exact recreation of reference screenshot card) */}
-        {showFloatingCard && (
-          <div className="floating-site-card">
-            <div className="floating-site-card-header">
-              <span className="floating-site-tag">
-                {currentSite ? "TARGET SITE" : "COORDINATES FOCUS"}
+            {/* HUD Top-Right Overlay (Phase Tag) */}
+            <div className="hud-corner-top-right">
+              <span className="hud-caption-tag">— MISSION PHASE —</span>
+              <span className="hud-phase-tag">
+                {s.lat <= -80 ? "SOUTH POLE SURVEY" : s.lat >= 80 ? "NORTH POLE SURVEY" : "EQUATORIAL SURVEY"}
               </span>
-              <button
-                style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: "12px", padding: 0 }}
-                onClick={() => setShowFloatingCard(false)}
-                title="Dismiss Card"
-              >
-                ✕
-              </button>
             </div>
-            <div className="floating-site-name">
-              {currentSite ? currentSite.name : `Site (${s.lat.toFixed(2)}°, ${s.lon.toFixed(2)}°E)`}
-            </div>
-            <div className="floating-site-desc">
-              {s.lat <= -88
-                ? "Near the lunar South Pole, the low solar elevation produces extreme shadow dynamics and persistent illuminated ridges crucial for long-duration surface presence."
-                : "Exploration site on the lunar surface with periodic day/night thermal cycling and geometric line-of-sight visibility to Earth."}
-            </div>
-            <div className="floating-site-grid">
-              <div>
-                <span className="lbl">LATITUDE</span>
-                <span className="val">{s.lat.toFixed(3)}°</span>
-              </div>
-              <div>
-                <span className="lbl">LONGITUDE</span>
-                <span className="val">{s.lon.toFixed(3)}°E</span>
-              </div>
-              <div>
-                <span className="lbl">SUN ELEVATION</span>
-                <span className="val" style={{ color: "var(--amber)" }}>
-                  {g ? `${g.sun.elevation_deg.toFixed(2)}°` : "–"}
-                </span>
-              </div>
-              <div>
-                <span className="lbl">EARTH LOS</span>
-                <span className="val" style={{ color: "var(--cyan)" }}>
-                  {g ? `${g.earth.elevation_deg.toFixed(2)}°` : "–"}
-                </span>
-              </div>
-              <div>
-                <span className="lbl">LOLA ELEVATION</span>
-                <span className="val" style={{ color: "var(--text-bright)" }}>
-                  {g?.elevation_m !== undefined ? `${g.elevation_m > 0 ? "+" : ""}${Math.round(g.elevation_m)} m` : "–"}
-                </span>
-              </div>
-              <div>
-                <span className="lbl">LANDING SAFETY</span>
-                <span className="val" style={{ color: g?.landing_evaluation?.badge_color ?? "var(--amber)" }}>
-                  {g?.landing_evaluation ? `${Math.round(g.landing_evaluation.suitability_score * 100)}% (${g.landing_evaluation.grade})` : "–"}
-                </span>
-              </div>
-            </div>
-            <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-              <button
-                className="btn-site-chip"
-                style={{ borderColor: "var(--amber)", color: "var(--amber)", fontWeight: 700, padding: "5px 10px" }}
-                onClick={() => s.setView("rover")}
-              >
-                SURFACE ROVER EXPEDITION ↗
-              </button>
-            </div>
-          </div>
-        )}
 
-        {/* Re-open Button */}
-        {!showFloatingCard && (
-          <button
-            style={{ position: "absolute", top: "70px", left: "16px", zIndex: 6 }}
-            className="btn-header"
-            onClick={() => setShowFloatingCard(true)}
-          >
-            SHOW SITE INSPECTOR
-          </button>
+            {/* FLOATING SITE INSPECTION HUD CARD */}
+            {showFloatingCard && (
+              <div className="floating-site-card">
+                <div className="floating-site-card-header">
+                  <span className="floating-site-tag">
+                    {currentSite ? "TARGET SITE" : "COORDINATES FOCUS"}
+                  </span>
+                  <button
+                    style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", fontSize: "12px", padding: 0 }}
+                    onClick={() => setShowFloatingCard(false)}
+                    title="Dismiss Card"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="floating-site-name">
+                  {currentSite ? currentSite.name : `Site (${s.lat.toFixed(2)}°, ${s.lon.toFixed(2)}°E)`}
+                </div>
+                <div className="floating-site-desc">
+                  {s.lat <= -88
+                    ? "Near the lunar South Pole, the low solar elevation produces extreme shadow dynamics and persistent illuminated ridges crucial for long-duration surface presence."
+                    : "Exploration site on the lunar surface with periodic day/night thermal cycling and geometric line-of-sight visibility to Earth."}
+                </div>
+                <div className="floating-site-grid">
+                  <div>
+                    <span className="lbl">LATITUDE</span>
+                    <span className="val">{s.lat.toFixed(3)}°</span>
+                  </div>
+                  <div>
+                    <span className="lbl">LONGITUDE</span>
+                    <span className="val">{s.lon.toFixed(3)}°E</span>
+                  </div>
+                  <div>
+                    <span className="lbl">SUN ELEVATION</span>
+                    <span className="val" style={{ color: "var(--amber)" }}>
+                      {g ? `${g.sun.elevation_deg.toFixed(2)}°` : "–"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="lbl">EARTH LOS</span>
+                    <span className="val" style={{ color: "var(--cyan)" }}>
+                      {g ? `${g.earth.elevation_deg.toFixed(2)}°` : "–"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="lbl">LOLA ELEVATION</span>
+                    <span className="val" style={{ color: "var(--text-bright)" }}>
+                      {g?.elevation_m !== undefined ? `${g.elevation_m > 0 ? "+" : ""}${Math.round(g.elevation_m)} m` : "–"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="lbl">LANDING SAFETY</span>
+                    <span className="val" style={{ color: g?.landing_evaluation?.badge_color ?? "var(--amber)" }}>
+                      {g?.landing_evaluation ? `${Math.round(g.landing_evaluation.suitability_score)}% (${g.landing_evaluation.grade})` : "–"}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ marginTop: "10px", display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                  <button
+                    className="btn-site-chip"
+                    style={{ borderColor: "var(--amber)", color: "var(--amber)", fontWeight: 700, padding: "5px 10px" }}
+                    onClick={() => s.setView("rover")}
+                  >
+                    SURFACE ROVER EXPEDITION ↗
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Re-open Button */}
+            {!showFloatingCard && (
+              <button
+                style={{ position: "absolute", top: "70px", left: "16px", zIndex: 6 }}
+                className="btn-header"
+                onClick={() => setShowFloatingCard(true)}
+              >
+                SHOW SITE INSPECTOR
+              </button>
+            )}
+
+            {/* Top-Right Visual Layers Menu */}
+            <div className="hud-layers-flyout">
+              <details className="layers-details-box">
+                <summary>VISUAL LAYERS ▾</summary>
+                {LAYERS.map((l) => (
+                  <label key={l.k} className="layer-item-chk">
+                    <input
+                      type="checkbox"
+                      checked={s.layers[l.k]}
+                      onChange={() => s.toggleLayer(l.k)}
+                    />
+                    <span>{l.label}</span>
+                  </label>
+                ))}
+                <div style={{ height: "1px", background: "var(--line-glass)", margin: "6px 0" }} />
+                {UNAVAILABLE_LAYERS.map((l) => (
+                  <label key={l} className="layer-item-chk disabled" title="Requires NASA LRO/LOLA DEM data">
+                    <input type="checkbox" disabled />
+                    <span>{l}</span>
+                  </label>
+                ))}
+              </details>
+            </div>
+
+            {/* Overlaid Corner Telemetry Tags */}
+            <div style={{ position: "absolute", bottom: "16px", left: "16px", zIndex: 5, pointerEvents: "none" }}>
+              <div className="hud-caption-tag">SOLAR FLUX (1 AU)</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--amber)" }}>
+                1,361 <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-dim)" }}>W/M²</span>
+              </div>
+            </div>
+
+            <div style={{ position: "absolute", bottom: "16px", right: "16px", zIndex: 5, pointerEvents: "none", textAlign: "right" }}>
+              <div className="hud-caption-tag">EARTH DISTANCE</div>
+              <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--cyan)" }}>
+                {g ? Math.round(g.earth.range_km).toLocaleString() : "384,400"}{" "}
+                <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-dim)" }}>KM</span>
+              </div>
+            </div>
+          </>
         )}
 
         {/* Bottom Orbit & Rover Views Toolbar */}
@@ -622,46 +666,6 @@ export default function App() {
           >
             {s.fullscreen ? "↙ EXIT FULLSCREEN" : "⛶ FULLSCREEN"}
           </button>
-        </div>
-
-        {/* Top-Right Visual Layers Menu */}
-        <div className="hud-layers-flyout">
-          <details className="layers-details-box">
-            <summary>VISUAL LAYERS ▾</summary>
-            {LAYERS.map((l) => (
-              <label key={l.k} className="layer-item-chk">
-                <input
-                  type="checkbox"
-                  checked={s.layers[l.k]}
-                  onChange={() => s.toggleLayer(l.k)}
-                />
-                <span>{l.label}</span>
-              </label>
-            ))}
-            <div style={{ height: "1px", background: "var(--line-glass)", margin: "6px 0" }} />
-            {UNAVAILABLE_LAYERS.map((l) => (
-              <label key={l} className="layer-item-chk disabled" title="Requires NASA LRO/LOLA DEM data">
-                <input type="checkbox" disabled />
-                <span>{l}</span>
-              </label>
-            ))}
-          </details>
-        </div>
-
-        {/* Overlaid Corner Telemetry Tags */}
-        <div style={{ position: "absolute", bottom: "16px", left: "16px", zIndex: 5, pointerEvents: "none" }}>
-          <div className="hud-caption-tag">SOLAR FLUX (1 AU)</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--amber)" }}>
-            1,361 <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-dim)" }}>W/M²</span>
-          </div>
-        </div>
-
-        <div style={{ position: "absolute", bottom: "16px", right: "16px", zIndex: 5, pointerEvents: "none", textAlign: "right" }}>
-          <div className="hud-caption-tag">EARTH DISTANCE</div>
-          <div style={{ fontFamily: "var(--font-mono)", fontSize: "14px", fontWeight: 700, color: "var(--cyan)" }}>
-            {g ? Math.round(g.earth.range_km).toLocaleString() : "384,400"}{" "}
-            <span style={{ fontSize: "10px", fontWeight: 400, color: "var(--text-dim)" }}>KM</span>
-          </div>
         </div>
       </main>
 
@@ -791,7 +795,7 @@ export default function App() {
             </dd>
             <dt>Landing Suitability</dt>
             <dd style={{ color: g?.landing_evaluation?.badge_color ?? "var(--amber)", fontWeight: 700 }}>
-              {g?.landing_evaluation ? `${Math.round(g.landing_evaluation.suitability_score * 100)}% (${g.landing_evaluation.status})` : "–"}
+              {g?.landing_evaluation ? `${Math.round(g.landing_evaluation.suitability_score)}% (${g.landing_evaluation.status})` : "–"}
             </dd>
           </dl>
           {s.calcMs !== null && (
