@@ -166,6 +166,13 @@ export type RoverSim = {
   headlights: boolean;
   showReseau: boolean;
   cameraMode: "chase" | "cockpit" | "drone";
+  driveMode: "eco" | "nominal" | "overdrive";
+  airborne: boolean;
+  gForce: number;
+  slipDeg: number;
+  wheelLoads: [number, number, number, number]; // FL, FR, RL, RR suspension compression 0..100%
+  motorKw: number;
+  batteryPct: number;
 };
 
 type State = {
@@ -270,6 +277,13 @@ export const useSim = create<State>((set, get) => ({
     headlights: true,
     showReseau: true,
     cameraMode: "chase",
+    driveMode: "nominal",
+    airborne: false,
+    gForce: 0.16,
+    slipDeg: 0,
+    wheelLoads: [45, 45, 45, 45],
+    motorKw: 0,
+    batteryPct: 98.4,
   },
   setRover: (r) => set((s) => ({ rover: { ...s.rover, ...r } })),
   set: (p) => set(p as any),
