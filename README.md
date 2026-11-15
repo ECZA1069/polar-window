@@ -13,6 +13,7 @@
 - **Solar Elevation & Power Subsystem**: Real-time solar elevation angle, irradiance ($W/m^2$), photovoltaic array power generation, and battery state-of-charge modeling across multi-day mission windows.
 
 ### 2. NASA LRO LOLA Topography & Autonomous Landing Recommender
+- **17 Calibrated LOLA Craters & Touchdown Sites**: Includes Shackleton Crater Rim, Peak Near Shackleton, Cabeus PSR Basin, Shoemaker, Haworth, Faustini, de Gerlache, Nobile Rim 1 (VIPER), Amundsen, Malapert Massif, Leibnitz Beta Plateau, Tycho, Copernicus, Taurus-Littrow (Apollo 17), Shiv Shakti Point (Chandrayaan-3), Clavius Basin, and Schrödinger Basin.
 - **LOLA Digital Elevation & Slope Engine**: Calibrated elevation ($h$), terrain slope ($\text{deg}$), surface roughness, and Permanently Shadowed Region (PSR) proximity across NASA Artemis III candidate landing regions and historical touchdown sites.
 - **Autonomous Landing Suitability Index**: Ranks candidate landing sites using a weighted multi-criteria engineering model:
   - **Slope Safety (40%)**: Evaluates lander tip-over risk ($<5^\circ$ optimal).
@@ -20,12 +21,13 @@
   - **Direct-to-Earth (DTE) Comms (20%)**: Line-of-sight Earth elevation for telemetry.
   - **Thermal & PSR Proximity (10%)**: Access to water-ice volatile cold traps.
 
-### 3. Interactive 3D Moon & Apollo Lunar Roving Vehicle (LRV) Simulator
-- **3D Lunar Globe**: Three.js / React Three Fiber globe with Celestia albedo and normal relief maps, dynamic SPICE solar terminator, coordinate graticule, Sun/Earth vectors, and clickable LOLA crater rim rings.
+### 3. Interactive 3D Moon, Landing Portal & Apollo Lunar Roving Vehicle (LRV) Simulator
+- **Interactive Mission Landing Page**: Features a live 3D rotating Moon hero stage, LOLA site catalog preview, and **"Try Polar Window"** launch buttons that transition into the full mission command center.
+- **3D Lunar Globe & LOLA Crater Overlay**: Three.js / React Three Fiber globe with Celestia albedo and normal relief maps, dynamic SPICE solar terminator, coordinate graticule, Sun/Earth vectors, interactive LOLA crater rim contours, PSR cold-trap floor rings, and a docked LOLA DEM altimetry readout strip.
 - **Apollo 17 Surface Rover Mode**:
   - Detailed 3D NASA Lunar Roving Vehicle (wire-mesh wheels with titanium chevron treads, Kapton gold MLI insulation, high-gain parabolic dish antenna, GCTA color TV camera, and dual headlights).
-  - **Taurus-Littrow Valley & Station 6 ("Tracy's Rock")**: Recreates the split boulder formation and astronaut EVA figure.
-  - **4-Wheel Ground Raycasting & Dust Physics**: Real-time pitch/roll terrain alignment, dynamic tire prints stamped into the regolith, and $1.62\text{ m/s}^2$ lunar gravity dust rooster tails.
+  - **Taurus-Littrow Valley & Station 6 ("Tracy's Rock")**: Recreates the split boulder formation, 12 site-specific real lunar craters, and astronaut EVA figure.
+  - **4-Wheel Independent Suspension & Rock-Climbing Physics**: Real-time per-wheel terrain/boulder height sampling, spring-damper strut compression, chassis pitch/roll dynamics, dynamic tire prints stamped into the regolith, and $1.62\text{ m/s}^2$ lunar gravity dust rooster tails.
   - **360° Cursor Orbit & Fullscreen Mode**: Drag cursor for a $360^\circ$ view around the rover, drive with `WASD` / Arrow keys or on-screen D-Pad, and press `F` for fullscreen immersion.
 
 ---
