@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import MoonView from "./Moon";
 import HorizonDome from "./HorizonDome";
+import LandingPage from "./LandingPage";
 import { TimelinePanel, PowerPanel, CommsPanel, ComparePanel, LandingPanel } from "./Panels";
 import { useSim, Tab, Layers, PanelParams } from "./store";
 import { useAnalysis, useBackendHealth, useGeometry, useLandingRecommendations } from "./api";
@@ -226,6 +227,7 @@ export default function App() {
   useLandingRecommendations();
 
   const s = useSim();
+  const [showLanding, setShowLanding] = useState(true);
   const [srcModal, setSrcModal] = useState(false);
   const [aboutModal, setAboutModal] = useState(false);
   const [showFloatingCard, setShowFloatingCard] = useState(false);
@@ -251,6 +253,24 @@ export default function App() {
     kernels_missing: "KERNELS MISSING",
     offline: "BACKEND OFFLINE",
   }[s.health];
+
+  if (showLanding) {
+    return (
+      <LandingPage
+        onEnterApp={(mode = "dashboard", siteId) => {
+          if (siteId) {
+            s.selectSite(siteId);
+          }
+          if (mode === "rover") {
+            s.setView("rover");
+          } else if (s.view === "rover") {
+            s.setView("south");
+          }
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="app">
@@ -301,6 +321,14 @@ export default function App() {
 
         {/* Right action navigation */}
         <div className="header-actions">
+          <button
+            className="btn-header"
+            style={{ borderColor: "var(--cyan)", color: "var(--cyan)" }}
+            onClick={() => setShowLanding(true)}
+            title="Return to Polar Window Front-End Landing Page"
+          >
+            ◀ HOME
+          </button>
           <select
             className="aero-select"
             style={{ width: "230px", padding: "5px 8px", fontSize: "11px", height: "28px" }}
