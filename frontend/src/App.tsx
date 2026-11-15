@@ -230,7 +230,7 @@ export default function App() {
   const [showLanding, setShowLanding] = useState(true);
   const [srcModal, setSrcModal] = useState(false);
   const [aboutModal, setAboutModal] = useState(false);
-  const [showFloatingCard, setShowFloatingCard] = useState(false);
+  const [showFloatingCard, setShowFloatingCard] = useState(true);
 
   const g = s.geometry;
   const wEnd = s.windowStartMs + s.windowHours * 3600e3;
@@ -656,6 +656,17 @@ export default function App() {
             title="Deploy and drive the NASA Lunar Roving Vehicle on the Moon surface"
           >
             SURFACE ROVER (LRV)
+          </button>
+          <button
+            className={`btn-hud-view ${s.layers.craters ? "active" : ""}`}
+            onClick={() => s.toggleLayer("craters")}
+            title="Toggle NASA LOLA Crater Rim Circles & PSR Basins on the 3D Moon"
+            style={{
+              borderColor: s.layers.craters ? "var(--cyan)" : undefined,
+              color: s.layers.craters ? "var(--cyan)" : undefined,
+            }}
+          >
+            {s.layers.craters ? "◎ LOLA CRATERS: ON" : "○ LOLA CRATERS: OFF"}
           </button>
           <button
             className={`btn-hud-view ${s.fullscreen ? "active" : ""}`}
